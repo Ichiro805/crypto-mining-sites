@@ -11,10 +11,6 @@ function run_bot() {
 	setTimeout(joined, 5000);
 }
 
-function unmute() {
-	
-}
-
 function joined() {	
 	// find joined button and click it
 	var afterJoinButtons = document.getElementsByTagName("button");
@@ -30,7 +26,7 @@ function joined() {
 	}
 
 	if (joinedButton) {
-		console.log("Clicking joined button");
+		console.error("Clicking joined button");
 		joinedButton.click();
 	}
 }
@@ -49,7 +45,7 @@ function zecChannel(){
 
 	// open zec bot channel
 	if (zecBotChannel) {
-		console.log("open zec channel");
+		console.error("open zec channel");
 		triggerMouseEvent (zecBotChannel, "mousedown");
 	}
 }
@@ -58,7 +54,7 @@ function joinChannelOrGroup() {
 	// find join channel button and join the channel
 	var joinButton = document.getElementsByClassName("btn btn-primary im_start_btn")[0];
 	if (joinButton) {
-		console.log("join channel/group");
+		console.error("join channel/group");
 		joinButton.click();
 	}
 }
@@ -78,7 +74,7 @@ function joinChats() {
 
 	// start joining chats
 	if (joinChatsButton) {
-		console.log("Clicking Join chats button");
+		console.error("Clicking Join chats button");
 		joinChatsButton.click();
 	}
 }
@@ -98,7 +94,7 @@ function goToChannelOrGroup() {
 
 	// join the group or the channel
 	if (channelButton) {
-		console.log("Opening channel/group");
+		console.error("Opening channel/group");
 		channelButton.click();
 	}
 }
@@ -107,7 +103,7 @@ function closeEmoji() {
 	// find emoji button and trigger mouse click
 	var emojiButton = document.getElementsByClassName("composer_keyboard_btn active");
 	if (emojiButton[0]) {
-		console.log("Clicking emoji button");
+		console.error("Clicking emoji button");
 		triggerMouseEvent (emojiButton[0], "mousedown");
 	}
 }

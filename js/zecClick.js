@@ -5,14 +5,31 @@
 
 var NEXT_OPERATION_READY = true;
 
+let totalChannelsJoined = 0;
+	
+let calledOperations = 0;
+
+var startTime = performance.now();
+		
 function run_bot() {
 	window.setInterval(function(){
+
 		console.error("Start time: " + getCurrentDateTime());
 		console.error("Value of flag is: " + NEXT_OPERATION_READY);
 		if (NEXT_OPERATION_READY) {
+			calledOperations++;
+			console.error("Called operations: " + calledOperations);
+			if (calledOperations % 5 == 0) {
+				totalChannelsJoined++;
+				console.error("Total channels joined: " + totalChannelsJoined);
+				calledOperations = 0;
+			}
 			callNextOperation();
+			
 		}
 		console.error("End time: " + getCurrentDateTime());
+		var timeNow = performance.now();
+		console.error("Total execution time of the farm is: " + (timeNow - startTime) / 1000 + " seconds");
 	}, 10000);
 }
 
@@ -124,38 +141,38 @@ function closeEmoji() {
 }
 
 function triggerMouseEvent (node, eventType) {
-    var clickEvent = document.createEvent ('MouseEvents');
-    clickEvent.initEvent (eventType, true, true);
-    node.dispatchEvent (clickEvent);
+	var clickEvent = document.createEvent ('MouseEvents');
+	clickEvent.initEvent (eventType, true, true);
+	node.dispatchEvent (clickEvent);
 }
 
 function sleep(ms) {
   const date = Date.now();
   let currentDate = null;
   do {
-    currentDate = Date.now();
+	currentDate = Date.now();
   } while (currentDate - date < ms);
 }
 
 function readSingleFile(e) {
   var file = e.target.files[0];
   if (!file) {
-    return;
+	return;
   }
   var reader = new FileReader();
   reader.onload = function(e) {
-    var contents = e.target.result;
-    displayContents(contents);
+	var contents = e.target.result;
+	displayContents(contents);
   };
   reader.readAsText(file);
 }
 
 function callNextOperation(){
 	console.error("Requesting next operation..!");
-    // read text from URL location
-    var request = new XMLHttpRequest();
-    request.open('GET', 'https://localhost:8080/', false);
-    request.send(null);
+	// read text from URL location
+	var request = new XMLHttpRequest();
+	request.open('GET', 'https://localhost:8080/', false);
+	request.send(null);
 	if (request.status == 200) {
 		var operation = request.responseText;
 		console.error("Calling operation: " + operation);

@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="ZECBotTelegramBot:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/ZECBotTelegramBot_jar</output-path>
+    <root id="archive" name="ZECBotTelegramBot.jar">
+      <element id="module-output" name="ZECBotTelegramBot" />
+    </root>
+  </artifact>
+</component>

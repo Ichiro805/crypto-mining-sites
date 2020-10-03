@@ -1,15 +1,24 @@
 (function(){
 	joinChats();
-    setInterval(run_bot, 25000);
+	run_bot();
 })();
 
+var NEXT_OPERATION_READY = true;
+
 function run_bot() {
-	setTimeout(closeEmoji, 5000);
-	setTimeout(goToChannelOrGroup, 5000);
-	setTimeout(joinChannelOrGroup, 5000);
-	setTimeout(zecChannel, 5000);
-	setTimeout(joined, 5000);
+	window.setInterval(function(){
+		console.error("Start time: " + getCurrentDateTime());
+		console.error("Value of flag is: " + NEXT_OPERATION_READY);
+		if (NEXT_OPERATION_READY) {
+			callNextOperation();
+		}
+		console.error("End time: " + getCurrentDateTime());
+	}, 10000);
 }
+
+// CHANNEL_INVALID
+
+// FLOOD_WAIT_52915
 
 function joined() {	
 	// find joined button and click it
@@ -29,6 +38,7 @@ function joined() {
 		console.error("Clicking joined button");
 		joinedButton.click();
 	}
+	NEXT_OPERATION_READY = true;
 }
 
 function zecChannel(){
@@ -48,6 +58,7 @@ function zecChannel(){
 		console.error("open zec channel");
 		triggerMouseEvent (zecBotChannel, "mousedown");
 	}
+	NEXT_OPERATION_READY = true;
 }
 
 function joinChannelOrGroup() {
@@ -57,6 +68,7 @@ function joinChannelOrGroup() {
 		console.error("join channel/group");
 		joinButton.click();
 	}
+	NEXT_OPERATION_READY = true;
 }
 
 function joinChats() {
@@ -77,6 +89,7 @@ function joinChats() {
 		console.error("Clicking Join chats button");
 		joinChatsButton.click();
 	}
+	NEXT_OPERATION_READY = true;
 }
 
 function goToChannelOrGroup() {
@@ -97,6 +110,7 @@ function goToChannelOrGroup() {
 		console.error("Opening channel/group");
 		channelButton.click();
 	}
+	NEXT_OPERATION_READY = true;
 }
 	
 function closeEmoji() {
@@ -106,6 +120,7 @@ function closeEmoji() {
 		console.error("Clicking emoji button");
 		triggerMouseEvent (emojiButton[0], "mousedown");
 	}
+	NEXT_OPERATION_READY = true;
 }
 
 function triggerMouseEvent (node, eventType) {
@@ -121,3 +136,40 @@ function sleep(ms) {
     currentDate = Date.now();
   } while (currentDate - date < ms);
 }
+
+function readSingleFile(e) {
+  var file = e.target.files[0];
+  if (!file) {
+    return;
+  }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var contents = e.target.result;
+    displayContents(contents);
+  };
+  reader.readAsText(file);
+}
+
+function callNextOperation(){
+	console.error("Requesting next operation..!");
+    // read text from URL location
+    var request = new XMLHttpRequest();
+    request.open('GET', 'https://localhost:8080/', false);
+    request.send(null);
+	if (request.status == 200) {
+		var operation = request.responseText;
+		console.error("Calling operation: " + operation);
+		window[operation]();
+	}
+}	
+
+function getCurrentDateTime() {
+	var today = new Date();
+	return today.getFullYear()+'-'+(today.getMonth()+1)+'-'+today.getDate() + ':' + today.getHours() + ':' + today.getMinutes() + ':' + today.getSeconds();
+}
+
+// https://chrome.google.com/webstore/detail/allow-cors-access-control/lhobafahddgcelffkeicbaginigeejlf
+
+// https://addons.mozilla.org/bg/firefox/addon/access-control-allow-origin/
+// add certificate in the trusted CA in the browser
+//  F:/Installations/Java/1.8.jre/bin/keytool -genkeypair -keyalg RSA -alias selfsigned -keystore zecbot.jks -storepass 14eiuqhwdyeuq* -validity 360 -keysize 2048 -deststoretype pkcs12

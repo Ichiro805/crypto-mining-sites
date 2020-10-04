@@ -39,7 +39,7 @@ function validate() {
 		skipChannel();
 		result = false;
 	}
-	if (message[message.length - 1].innerText.includes("You already completed this task.")) {
+	if (message[message.length - 1].innerText.includes("You already completed this task.") || message[message.length - 1].innerText.includes("There is a new chat for you to join!") {
 		joinChats();
 		result = false;
 	}

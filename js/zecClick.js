@@ -10,26 +10,52 @@ let totalChannelsJoined = 0;
 let calledOperations = 0;
 
 var startTime = performance.now();
+
+const earningType = {
+	VISIT_SITE : "visit_site",
+	JOIN_CHANNEL : "join_channel",
+	MESSAGE_BOT : "message_bot"
+}
+
+let controlEarningsType = earningType.JOIN_CHANNEL;
 		
 function run_bot() {
 	window.setInterval(function(){
-
-		console.error("Start time: " + getCurrentDateTime());
-		console.error("Value of flag is: " + NEXT_OPERATION_READY);
-		if (NEXT_OPERATION_READY && validate()) {
-			calledOperations++;
-			console.error("Called operations: " + calledOperations);
-			if (calledOperations % 5 == 0) {
-				totalChannelsJoined++;
-				console.error("Total channels joined: " + totalChannelsJoined);
-				calledOperations = 0;
-			}
-			callNextOperation();
+		switch (earningType) {
+			case earningType.JOIN_CHANNEL:
+				joinChannel();
+			case earningType.VISIT_SITE:
+				visitSite();
+			case earningType.MESSAGE_BOT:
+				messageBot();
 		}
-		console.error("End time: " + getCurrentDateTime());
 		var timeNow = performance.now();
 		console.error("Total execution time of the farm is: " + (timeNow - startTime) / 1000 + " seconds");
 	}, 6000);
+}
+
+function joinChannel() {
+	console.error("Start time: " + getCurrentDateTime());
+	console.error("Value of flag is: " + NEXT_OPERATION_READY);
+	if (NEXT_OPERATION_READY && validate()) {
+		calledOperations++;
+		console.error("Called operations: " + calledOperations);
+		if (calledOperations % 4 == 0) {
+			totalChannelsJoined++;
+			console.error("Total channels joined: " + totalChannelsJoined);
+			calledOperations = 0;
+		}
+		callNextOperation();
+	}
+	console.error("End time: " + getCurrentDateTime());
+}
+
+function visitSite() {
+	
+}
+
+function messageBot() {
+	
 }
 
 function validate() {

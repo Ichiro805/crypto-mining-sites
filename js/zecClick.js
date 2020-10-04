@@ -29,7 +29,7 @@ function run_bot() {
 		console.error("End time: " + getCurrentDateTime());
 		var timeNow = performance.now();
 		console.error("Total execution time of the farm is: " + (timeNow - startTime) / 1000 + " seconds");
-	}, 10000);
+	}, 6000);
 }
 
 function validate() {
@@ -46,7 +46,12 @@ function validate() {
 	
 	if (message[message.length - 1].innerText.includes("Sorry, there are no new ads available.")) {
 		console.error("Waiting for new tasks");
+		joinChats();
 		result = false;
+	}
+	
+	if (!result) {
+		zecChannel();
 	}
 	
 	return result;
@@ -186,27 +191,6 @@ function triggerMouseEvent (node, eventType) {
 	var clickEvent = document.createEvent ('MouseEvents');
 	clickEvent.initEvent (eventType, true, true);
 	node.dispatchEvent (clickEvent);
-}
-
-function sleep(ms) {
-  const date = Date.now();
-  let currentDate = null;
-  do {
-	currentDate = Date.now();
-  } while (currentDate - date < ms);
-}
-
-function readSingleFile(e) {
-  var file = e.target.files[0];
-  if (!file) {
-	return;
-  }
-  var reader = new FileReader();
-  reader.onload = function(e) {
-	var contents = e.target.result;
-	displayContents(contents);
-  };
-  reader.readAsText(file);
 }
 
 function callNextOperation(){

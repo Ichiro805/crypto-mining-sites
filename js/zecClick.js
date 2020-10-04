@@ -19,6 +19,7 @@ var controlEarningsType = earningType.JOIN_CHANNEL;
 		
 function run_bot() {
 	window.setInterval(function(){
+		console.error("--------------------------========================------------------------");
 		switch (controlEarningsType) {
 			case earningType.JOIN_CHANNEL:
 				joinChannel();
@@ -33,7 +34,6 @@ function run_bot() {
 }
 
 function joinChannel() {
-	console.error("Start time: " + getCurrentDateTime());
 	console.error("Value of flag is: " + NEXT_OPERATION_READY);
 	if (NEXT_OPERATION_READY && validate()) {
 		calledOperations++;
@@ -45,7 +45,6 @@ function joinChannel() {
 		}
 		callNextOperation();
 	}
-	console.error("End time: " + getCurrentDateTime());
 }
 
 function visitSite() {
@@ -59,26 +58,30 @@ function messageBot() {
 function validate() {
 	var result = true;
 	var message = document.getElementsByClassName("im_message_text");
-	if (message[message.length - 1].innerText.includes("If this message persists, try rejoining the group.") || message[message.length - 1].innerText.includes("If this message persists, try rejoining the channel.") || message[message.length - 1].innerText.includes("You already completed this task.")) {
+	
+	console.error("Validating message: " + message[message.length - 1].innerHTML);
+	
+	if (message[message.length - 1].innerHTML.includes("We cannot find you") || message[message.length - 1].innerHTML.includes("You already completed this task")){
 		skipChannel();
 		sleep();
 		result = false;
 	}
-	if (message[message.length - 1].innerText.includes("There is a new chat for you to join!")) {
-		joinChats();
+	if (message[message.length - 1].innerHTML.includes("There is a new chat for you to join")) {
 		result = false;
 	}
 	
-	if (message[message.length - 1].innerText.includes("Sorry, there are no new ads available.")) {
+	if (message[message.length - 1].innerHTML.includes("Sorry, there are no new ads available")) {
 		console.error("Waiting for new tasks");
 		sleep();
-		joinChats();
 		result = false;
 	}
 	
 	if (!result) {
 		zecChannel();
+		joinChats();
 	}
+	
+	console.error("Validation is: " + result);
 	
 	return result;
 }

@@ -1,0 +1,11 @@
+[
+	{
+		"name": "zecBot",
+		"operations": {
+			"goToChannelOrGroup": 5000,
+			"joinChannelOrGroup": 5000,
+			"zecChannel":5000,
+			"joined":5000
+		}
+	}
+]

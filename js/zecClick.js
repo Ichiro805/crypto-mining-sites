@@ -59,7 +59,7 @@ function messageBot() {
 function validate() {
 	var result = true;
 	var message = document.getElementsByClassName("im_message_text");
-	if (message[message.length - 1].innerText.includes("If this message persists, try rejoining the group.")) {
+	if (message[message.length - 1].innerText.includes("If this message persists, try rejoining the group.") || message[message.length - 1].innerText.includes("If this message persists, try rejoining the channel.")) {
 		skipChannel();
 		result = false;
 	}

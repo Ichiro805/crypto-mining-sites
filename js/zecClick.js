@@ -11,17 +11,15 @@ let calledOperations = 0;
 
 var startTime = performance.now();
 
-const earningType = {
-	VISIT_SITE : "visit_site",
-	JOIN_CHANNEL : "join_channel",
-	MESSAGE_BOT : "message_bot"
-}
+const earningType = {VISIT_SITE: 0, JOIN_CHANNEL: 1, MESSAGE_BOT: 2};
 
-let controlEarningsType = earningType.JOIN_CHANNEL;
+Object.freeze(earningType);
+
+var controlEarningsType = earningType.JOIN_CHANNEL;
 		
 function run_bot() {
 	window.setInterval(function(){
-		switch (earningType) {
+		switch (controlEarningsType) {
 			case earningType.JOIN_CHANNEL:
 				joinChannel();
 			case earningType.VISIT_SITE:

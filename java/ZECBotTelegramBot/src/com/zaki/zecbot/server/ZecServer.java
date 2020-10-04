@@ -3,6 +3,8 @@ package com.zaki.zecbot.server;
 import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsParameters;
 import com.sun.net.httpserver.HttpsServer;
+import com.zaki.zecbot.server.handler.CommandHandler;
+import com.zaki.zecbot.server.handler.SleepHandler;
 
 import javax.net.ssl.*;
 import java.io.FileInputStream;
@@ -13,7 +15,7 @@ public class ZecServer {
 
     private HttpsServer instance;
 
-    private CommandHandler handler;
+    private CommandHandler commandHandler;
 
     private boolean isRunning;
 
@@ -64,8 +66,9 @@ public class ZecServer {
                 }
             }
         });
-        handler = new CommandHandler();
-        instance.createContext("/", handler);
+        commandHandler = new CommandHandler();
+        instance.createContext("/zecbot/", commandHandler);
+        instance.createContext("/sleep", new SleepHandler());
         instance.setExecutor(null); // creates a default executor
     }
 
@@ -81,8 +84,8 @@ public class ZecServer {
         if (instance != null) {
             instance.stop(0);
         }
-        if (handler != null) {
-            handler.stop();
+        if (commandHandler != null) {
+            commandHandler.stop();
         }
         isRunning = false;
     }

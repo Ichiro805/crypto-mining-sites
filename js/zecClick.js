@@ -29,7 +29,7 @@ function run_bot() {
 		}
 		var timeNow = performance.now();
 		console.error("Total execution time of the farm is: " + (timeNow - startTime) / 1000 + " seconds");
-	}, 6000);
+	}, 2000);
 }
 
 function joinChannel() {
@@ -59,17 +59,19 @@ function messageBot() {
 function validate() {
 	var result = true;
 	var message = document.getElementsByClassName("im_message_text");
-	if (message[message.length - 1].innerText.includes("If this message persists, try rejoining the group.") || message[message.length - 1].innerText.includes("If this message persists, try rejoining the channel.")) {
+	if (message[message.length - 1].innerText.includes("If this message persists, try rejoining the group.") || message[message.length - 1].innerText.includes("If this message persists, try rejoining the channel.") || message[message.length - 1].innerText.includes("You already completed this task.")) {
 		skipChannel();
+		sleep();
 		result = false;
 	}
-	if (message[message.length - 1].innerText.includes("You already completed this task.") || message[message.length - 1].innerText.includes("There is a new chat for you to join!")) {
+	if (message[message.length - 1].innerText.includes("There is a new chat for you to join!")) {
 		joinChats();
 		result = false;
 	}
 	
 	if (message[message.length - 1].innerText.includes("Sorry, there are no new ads available.")) {
 		console.error("Waiting for new tasks");
+		sleep();
 		joinChats();
 		result = false;
 	}
@@ -79,6 +81,15 @@ function validate() {
 	}
 	
 	return result;
+}
+
+function sleep() {
+	var request = new XMLHttpRequest();
+	request.open('GET', 'https://localhost:8080/sleep', false);
+	request.send(null);
+	if (request.status == 200) {
+		console.error("Sleeping");
+	}
 }
 
 function skipChannel() {
@@ -219,9 +230,8 @@ function triggerMouseEvent (node, eventType) {
 
 function callNextOperation(){
 	console.error("Requesting next operation..!");
-	// read text from URL location
 	var request = new XMLHttpRequest();
-	request.open('GET', 'https://localhost:8080/', false);
+	request.open('GET', 'https://localhost:8080/zecbot/', false);
 	request.send(null);
 	if (request.status == 200) {
 		var operation = request.responseText;

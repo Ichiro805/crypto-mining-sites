@@ -16,7 +16,7 @@ function run_bot() {
 
 		console.error("Start time: " + getCurrentDateTime());
 		console.error("Value of flag is: " + NEXT_OPERATION_READY);
-		if (NEXT_OPERATION_READY) {
+		if (NEXT_OPERATION_READY && validate()) {
 			calledOperations++;
 			console.error("Called operations: " + calledOperations);
 			if (calledOperations % 5 == 0) {
@@ -25,7 +25,6 @@ function run_bot() {
 				calledOperations = 0;
 			}
 			callNextOperation();
-			
 		}
 		console.error("End time: " + getCurrentDateTime());
 		var timeNow = performance.now();
@@ -33,6 +32,49 @@ function run_bot() {
 	}, 10000);
 }
 
+function validate() {
+	var result = true;
+	var message = document.getElementsByClassName("im_message_text");
+	if (message[message.length - 1].innerText.includes("If this message persists, try rejoining the group.")) {
+		skipChannel();
+		result = false;
+	}
+	if (message[message.length - 1].innerText.includes("You already completed this task.")) {
+		joinChats();
+		result = false;
+	}
+	
+	if (message[message.length - 1].innerText.includes("Sorry, there are no new ads available.")) {
+		console.error("Waiting for new tasks");
+		result = false;
+	}
+	
+	return result;
+}
+
+function skipChannel() {
+	var buttons = document.getElementsByTagName("button");
+	var searchText = ":fast_forward: Skip";
+	var skipButton;
+
+	// for each button find the button with proper name
+	for (var i = 0; i < buttons.length; i++) {
+	  if (buttons[i].textContent == searchText) {
+		skipButton = buttons[i];
+		break;
+	  }
+	}
+
+	// skip channel
+	if (skipButton) {
+		console.error("Skipping channel");
+		skipButton.click();
+	}
+	NEXT_OPERATION_READY = true;
+}
+
+// Sorry, that task is no longer valid. :worried:
+// You already completed this task.
 // CHANNEL_INVALID
 
 // FLOOD_WAIT_52915

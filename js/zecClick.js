@@ -139,6 +139,11 @@ function getLastMessage() {
 	return message[message.length - 1].innerHTML;
 }
 
+function getPreviousMessage() {
+	var message = document.getElementsByClassName("im_message_text");
+	return message[message.length - 2].innerHTML;
+}
+
 async function validateJoinChannel() {
 	var result = true;
 	var message = getLastMessage();
@@ -234,10 +239,11 @@ async function openWebsite() {
 		
 		await sleep(1500);
 		var message = getLastMessage();
-		if (message.includes("Please stay on the site for at least 10 seconds...")) {
+		var previousMessage = getPreviousMessage();
+		if (message.includes("Please stay on the site for at least 10 seconds...") || previousMessage.includes("Please stay on the site for at least 10 seconds...")) {
 			timeToSleep = 10000;
 		} else {
-			timeToSleep = 60000;
+			timeToSleep = 71000;
 		}
 	}
 	
@@ -392,8 +398,4 @@ function getCurrentDateTime() {
 	return today.getFullYear()+'-'+(today.getMonth()+1)+'-'+today.getDate() + ':' + today.getHours() + ':' + today.getMinutes() + ':' + today.getSeconds();
 }
 
-// https://chrome.google.com/webstore/detail/allow-cors-access-control/lhobafahddgcelffkeicbaginigeejlf
-
-// https://addons.mozilla.org/bg/firefox/addon/access-control-allow-origin/
-// add certificate in the trusted CA in the browser
-//  F:/Installations/Java/1.8.jre/bin/keytool -genkeypair -keyalg RSA -alias selfsigned -keystore zecbot.jks -storepass 14eiuqhwdyeuq* -validity 360 -keysize 2048 -deststoretype pkcs12
+startZecFarm();

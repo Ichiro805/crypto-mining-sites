@@ -23,10 +23,10 @@ let controlVisitedSites = 0;
 var wasJoiningChannels = false;
 
 var wasVisitingSites = false;
+
+// You must stay on the site for 10 seconds to get your reward.
 		
-function run_bot() {
-	window.name="myMainWindow";
-	
+function run_bot() {	
 	window.setInterval(function(){
 		console.error("--------------------------========================------------------------");
 		if (joiningChannels) {
@@ -35,10 +35,6 @@ function run_bot() {
 		} else if (visitingSites) {
 				console.error("Visiting sites");
 				visitSite();
-				
-				// TODO
-				controlEarningsType = "JOIN";
-				joinChats();
 		} else {
 				messageBot();
 		}
@@ -50,7 +46,7 @@ function run_bot() {
 function joinChannel() {
 	
 	if (!wasJoiningChannels) {
-		joinChannel();
+		joinChats();
 		sleep(5000);
 	} else {
 		console.error("Value of flag is: " + NEXT_OPERATION_READY);
@@ -71,9 +67,9 @@ function joinChannel() {
 			}
 			callNextOperation();
 		}
-		if (joiningChannels) {
-			wasJoiningChannels = true;
-		}
+	}
+	if (joiningChannels) {
+		wasJoiningChannels = true;
 	}
 }
 
@@ -81,6 +77,7 @@ function visitSite() {
 	if (!wasVisitingSites) {
 		startVisitingSites();
 		sleep(5000);
+		sleep(1000);
 	} else {
 		if (validateVisitSite()) {
 			visitedSites++;
@@ -88,12 +85,12 @@ function visitSite() {
 			
 			// click go to website
 			goToWebsite();
-			sleep(5000);
+			//sleep(5000);
 			
 			// open the website
 			var timeToSleep = openWebsite();
 			
-			sleep(5000);
+			//sleep(5000);
 			
 			// close the tab
 			closeCurrentTab();
@@ -106,10 +103,12 @@ function visitSite() {
 				joiningChannels = true;
 				wasJoiningChannels = false;
 			}
+			
+			sleep(1000);
 		}
-		if (visitingSites) {
-			wasVisitingSites = true;
-		}
+	}
+	if (visitingSites) {
+		wasVisitingSites = true;
 	}
 }
 
@@ -211,6 +210,7 @@ function startVisitingSites() {
 function goToWebsite() {
 	var visitSiteButton = findLinkByName("Go to website");
 	if (visitSiteButton) {
+		console.error("Clicking on go to website");
 		visitSiteButton.click();
 	}
 }
@@ -227,6 +227,8 @@ function openWebsite() {
 		//if (url.includes("doge.click")) {
 		//	timeToSleep = 61000;
 		//}
+		
+		console.error("Opening the website");
 		okButton.click();
 	}
 	
@@ -237,13 +239,10 @@ function closeCurrentTab() {
 	// does not close the tab, but returns the user to the previous tab which has oppened the current tab
 	// it is not possible to close tab which was not opened by script
 	
-	if (window.name!='myMainWindow') {
-	  window.open(location.href,"myMainWindow")
-	  window.close();
-	}
-
-	//window.open('','_parent','');
-	//window.focus();
+	window.open('','_parent','');
+	window.focus();
+	
+	console.error("Closing the tab");
 }
 
 function findParamByName(name) {

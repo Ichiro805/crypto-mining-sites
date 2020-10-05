@@ -14,6 +14,8 @@ var visitingSites = true;
 
 let controlVisitedSites = 0;
 
+let min = 0.0001;
+
 var wasJoiningChannels = false;
 
 var wasVisitingSites = false;
@@ -34,14 +36,18 @@ async function startBCHFarm() {
 		
 async function run_bot() {	
 	console.error("--------------------------========================------------------------");
-	if (joiningChannels) {
-		console.error("Joining channels");
-		await joinChannel();
-	} else if (visitingSites) {
-		console.error("Visiting sites");
-		await visitSite();
+	if (totalChannelsJoined % 50 == 0 || visitedSites % 50 == 0) {
+		await getBalance();
 	} else {
-		await messageBot();
+		if (joiningChannels) {
+			console.error("Joining channels");
+			await joinChannel();
+		} else if (visitingSites) {
+			console.error("Visiting sites");
+			await visitSite();
+		} else {
+			await messageBot();
+		}
 	}
 	var timeNow = performance.now();
 	console.error("Total execution time of the farm is: " + (timeNow - startTime) / 1000 + " seconds");
@@ -85,6 +91,46 @@ async function joinChannel() {
 	}
 	if (joiningChannels) {
 		wasJoiningChannels = true;
+	}
+}
+
+async function getBalance() {
+	var balanceButton = findButtonByName("Balance");
+	
+	if (balanceButton) {
+		balanceButton.click();
+		await sleep(2000);
+		var balance = parseFloat(getLastMessage().replace('<strong>', '').replace(" BCH</strong>", '').replace("Available balance: ", ''));
+		
+		if (Math.floor(min / balance) == 3) {
+			await sleep(2000);
+			//withdrawal(min);
+		}
+	}
+}
+
+async function withdrawal(var amount) {
+	var withdraw = findButtonByName("Withdraw");
+	if (withdraw) {
+		withdraw.click();
+		await sleep(2000);
+		setWallet();
+		await sleep(2000);
+		clickSendButton();
+	}
+}
+
+async function setWallet() {
+	var textField = document.getElementsByClassName("composer_rich_textarea")[0];
+	if (textField) {
+		textField.innerHTML = "qzhax69kqxl8ptq5f637lu7h8pyqzaflyqphyc52pk";
+	}
+}
+
+async function clickSendButton() {
+	var sendButton = findButtonByName("SEND");
+	if (sendButton) {
+		sendButton.click();
 	}
 }
 

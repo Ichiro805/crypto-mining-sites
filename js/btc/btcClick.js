@@ -6,6 +6,8 @@ let calledOperations = 0;
 
 let waitingForTasksRetry = 0;
 
+let waitingForTasksSitesRetry = 0;
+
 var startTime = performance.now();
 
 var joiningChannels = false;
@@ -18,7 +20,7 @@ var wasJoiningChannels = false;
 
 var wasVisitingSites = false;
 
-// You must stay on the site for 10 seconds to get your reward.
+let min = 0.00003;
 
 var isBotRunning = true;
 
@@ -34,14 +36,18 @@ async function startBTCFarm() {
 		
 async function run_bot() {	
 	console.error("--------------------------========================------------------------");
-	if (joiningChannels) {
-		console.error("Joining channels");
-		await joinChannel();
-	} else if (visitingSites) {
-		console.error("Visiting sites");
-		await visitSite();
+	if (totalChannelsJoined % 50 == 0 || visitedSites % 50 == 0) {
+		await getBalance();
 	} else {
-		await messageBot();
+		if (joiningChannels) {
+			console.error("Joining channels");
+			await joinChannel();
+		} else if (visitingSites) {
+			console.error("Visiting sites");
+			await visitSite();
+		} else {
+			await messageBot();
+		}
 	}
 	var timeNow = performance.now();
 	console.error("Total execution time of the farm is: " + (timeNow - startTime) / 1000 + " seconds");
@@ -88,12 +94,53 @@ async function joinChannel() {
 	}
 }
 
+async function getBalance() {
+	var balanceButton = findButtonByName("Balance");
+	
+	if (balanceButton) {
+		balanceButton.click();
+		await sleep(2000);
+		var balance = parseFloat(getLastMessage().replace('<strong>', '').replace(" BTC</strong>", '').replace("Available balance: ", ''));
+		
+		if (Math.floor(min / balance) == 3) {
+			await sleep(2000);
+			//withdrawal(min);
+		}
+	}
+}
+
+async function withdrawal(var amount) {
+	var withdraw = findButtonByName("Withdraw");
+	if (withdraw) {
+		withdraw.click();
+		await sleep(2000);
+		setWallet();
+		await sleep(2000);
+		clickSendButton();
+	}
+}
+
+async function setWallet() {
+	var textField = document.getElementsByClassName("composer_rich_textarea")[0];
+	if (textField) {
+		textField.innerHTML = "bc1qhsjtjlurw42a5pptmhte77rjlcd9245ejalkh0";
+	}
+}
+
+async function clickSendButton() {
+	var sendButton = findButtonByName("SEND");
+	if (sendButton) {
+		sendButton.click();
+	}
+}
+
 async function visitSite() {
 	if (!wasVisitingSites) {
 		startVisitingSites();
 		await sleep(2000);
 	} else {
-		if (validateVisitSite()) {
+		var validationResult = await validateVisitSite();
+		if (validationResult) {
 			visitedSites++;
 			console.error("Visited sites: " + visitedSites);
 			
@@ -130,13 +177,39 @@ async function messageBot() {
 	
 }
 
-function validateVisitSite() {
-	return true;
-}
-
 function getLastMessage() {
 	var message = document.getElementsByClassName("im_message_text");
 	return message[message.length - 1].innerHTML;
+}
+
+async function validateVisitSite() {
+	var result = true;
+	var message = getLastMessage();
+	
+	console.error("Validating message: " + message);
+	
+	if (message.includes("Sorry, there are no new ads available.")) {
+		console.error("Waiting for new tasks");
+		await sleep(5000);
+		result = false;
+		waitingForTasksSitesRetry++;
+		
+		// every 2 waits try to refresh the content
+		if (waitingForTasksSitesRetry % 2 == 0) {
+			joiningChannels = true;
+			wasJoiningChannels = false;
+			visitingSites = false;
+		}
+	}
+	
+	if (!result) {
+		await sleep(5000);
+		btcChannel();
+	}
+	
+	console.error("Validation is: " + result);
+	
+	return result;
 }
 
 async function validateJoinChannel() {
@@ -167,6 +240,7 @@ async function validateJoinChannel() {
 			joinChats();
 			// TODO
 			visitingSites = true;
+			wasVisitingSites = false;
 			joiningChannels = false;
 		}
 	}

@@ -26,7 +26,7 @@ var wasVisitingSites = false;
 
 // You must stay on the site for 10 seconds to get your reward.
 		
-function run_bot() {	
+async function run_bot() {	
 	window.setInterval(function(){
 		console.error("--------------------------========================------------------------");
 		if (joiningChannels) {

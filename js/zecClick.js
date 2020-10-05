@@ -1,9 +1,3 @@
-(function(){
-	run_bot();
-})();
-
-var NEXT_OPERATION_READY = true;
-
 let visitedSites = 0;
 
 let totalChannelsJoined = 0;
@@ -25,32 +19,41 @@ var wasJoiningChannels = false;
 var wasVisitingSites = false;
 
 // You must stay on the site for 10 seconds to get your reward.
-		
-async function run_bot() {	
-	window.setInterval(function(){
-		console.error("--------------------------========================------------------------");
-		if (joiningChannels) {
-				console.error("Joining channels");
-				joinChannel();
-		} else if (visitingSites) {
-				console.error("Visiting sites");
-				visitSite();
-		} else {
-				messageBot();
-		}
-		var timeNow = performance.now();
-		console.error("Total execution time of the farm is: " + (timeNow - startTime) / 1000 + " seconds");
-	}, 2000);
+
+var isBotRunning = true;
+
+async function stopZecFarm() {
+	isBotRunning = false;
 }
 
-function joinChannel() {
-	
+async function startZecFarm() {
+	do {
+		await run_bot();
+	} while (isBotRunning);
+}
+		
+async function run_bot() {	
+	console.error("--------------------------========================------------------------");
+	if (joiningChannels) {
+		console.error("Joining channels");
+		await joinChannel();
+	} else if (visitingSites) {
+		console.error("Visiting sites");
+		await visitSite();
+	} else {
+		await messageBot();
+	}
+	var timeNow = performance.now();
+	console.error("Total execution time of the farm is: " + (timeNow - startTime) / 1000 + " seconds");
+}
+
+async function joinChannel() {
 	if (!wasJoiningChannels) {
 		joinChats();
-		sleep(5000);
+		await sleep(4000);
 	} else {
-		console.error("Value of flag is: " + NEXT_OPERATION_READY);
-		if (NEXT_OPERATION_READY && validateJoinChannel()) {
+		var validationResult = await validateJoinChannel();
+		if (validationResult) {
 			calledOperations++;
 			console.error("Called operations: " + calledOperations);
 			if (calledOperations % 4 == 0) {
@@ -65,7 +68,19 @@ function joinChannel() {
 					wasVisitingSites = false;
 				}
 			}
-			callNextOperation();
+			if (goToChannelOrGroup()) {
+				await sleep(5000);
+			}
+			if (joinChannelOrGroup()) {
+				await sleep(5000);
+			}
+			if (zecChannel()) {
+				await sleep(5000);
+			}
+			if (joined()) {
+				await sleep(5000);
+			}
+			
 		}
 	}
 	if (joiningChannels) {
@@ -73,11 +88,10 @@ function joinChannel() {
 	}
 }
 
-function visitSite() {
+async function visitSite() {
 	if (!wasVisitingSites) {
 		startVisitingSites();
-		sleep(5000);
-		sleep(1000);
+		await sleep(2000);
 	} else {
 		if (validateVisitSite()) {
 			visitedSites++;
@@ -85,26 +99,26 @@ function visitSite() {
 			
 			// click go to website
 			goToWebsite();
-			//sleep(5000);
+			await sleep(2000);
 			
 			// open the website
-			var timeToSleep = openWebsite();
+			var timeToSleep = await openWebsite();
 			
-			//sleep(5000);
-			
-			// close the tab
-			closeCurrentTab();
-			
-			sleep(timeToSleep);
-			
-			// every 10 sites visited start joining channels
-			if (visitedSites % 10 == 0) {
-				visitingSites = false;
-				joiningChannels = true;
-				wasJoiningChannels = false;
+			if (timeToSleep != 0) {
+				await sleep(timeToSleep);
+				
+				// close the tab
+				closeCurrentTab();
+				
+				// every 10 sites visited start joining channels
+				if (visitedSites % 10 == 0) {
+					visitingSites = false;
+					joiningChannels = true;
+					wasJoiningChannels = false;
+				}
+				
+				await sleep(2000);
 			}
-			
-			sleep(1000);
 		}
 	}
 	if (visitingSites) {
@@ -112,7 +126,7 @@ function visitSite() {
 	}
 }
 
-function messageBot() {
+async function messageBot() {
 	
 }
 
@@ -120,26 +134,31 @@ function validateVisitSite() {
 	return true;
 }
 
-function validateJoinChannel() {
-	var result = true;
+function getLastMessage() {
 	var message = document.getElementsByClassName("im_message_text");
+	return message[message.length - 1].innerHTML;
+}
+
+async function validateJoinChannel() {
+	var result = true;
+	var message = getLastMessage();
 	
-	console.error("Validating message: " + message[message.length - 1].innerHTML);
+	console.error("Validating message: " + message);
 	
-	if (message[message.length - 1].innerHTML.includes("We cannot find you") || message[message.length - 1].innerHTML.includes("You already completed this task")){
+	if (message.includes("We cannot find you") || message.includes("You already completed this task")){
 		skipChannel();
-		sleep(5000);
+		await sleep(5000);
 		joinChats();
 		result = false;
 	}
-	if (message[message.length - 1].innerHTML.includes("There is a new chat for you to join")) {
+	if (message.includes("There is a new chat for you to join") || message.includes("Sorry, that task is no longer valid")) {
 		result = false;
 		joinChats();
 	}
 	
-	if (message[message.length - 1].innerHTML.includes("Sorry, there are no new ads available.") || message[message.length - 1].innerHTML.includes("Join chats")) {
+	if (message.includes("Sorry, there are no new ads available.") || message.includes("Join chats")) {
 		console.error("Waiting for new tasks");
-		sleep(5000);
+		await sleep(5000);
 		result = false;
 		waitingForTasksRetry++;
 		
@@ -153,6 +172,7 @@ function validateJoinChannel() {
 	}
 	
 	if (!result) {
+		await sleep(5000);
 		zecChannel();
 	}
 	
@@ -162,13 +182,8 @@ function validateJoinChannel() {
 }
 
 function sleep(ms) {
-	var request = new XMLHttpRequest();
-	request.open('GET', 'https://localhost:8080/sleep', false);
-	request.setRequestHeader("Sleep-Time", ms);
-	request.send(null);
-	if (request.status == 200) {
-		console.error("Sleeping was finished");
-	}
+	console.error("Sleeping");
+	return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function skipChannel() {
@@ -192,12 +207,6 @@ function skipChannel() {
 	NEXT_OPERATION_READY = true;
 }
 
-// Sorry, that task is no longer valid. :worried:
-// You already completed this task.
-// CHANNEL_INVALID
-
-// FLOOD_WAIT_52915
-
 function startVisitingSites() {
 	var visitSitesButton = findButtonByName("Visit sites");
 	
@@ -215,22 +224,24 @@ function goToWebsite() {
 	}
 }
 
-function openWebsite() {
+async function openWebsite() {
 	var okButton = findButtonByName("OK");
 	
-	var timeToSleep = 11000;
+	var timeToSleep = 0;
 	if (okButton) {
-		// get the url and check wheter it is doge.click and if so wait a little bit more
-		// TODO try to find exactly how much time we have to wait
-		//var url = document.getElementsByTagName("my-i18n-param")[0].innerText;
-		
-		//if (url.includes("doge.click")) {
-		//	timeToSleep = 61000;
-		//}
-		
 		console.error("Opening the website");
 		okButton.click();
+		
+		await sleep(1500);
+		var message = getLastMessage();
+		if (message.includes("Please stay on the site for at least 10 seconds...")) {
+			timeToSleep = 10000;
+		} else {
+			timeToSleep = 60000;
+		}
 	}
+	
+	console.error("Time to sleep is: " + timeToSleep);
 	
 	return timeToSleep;
 }
@@ -243,10 +254,6 @@ function closeCurrentTab() {
 	window.focus();
 	
 	console.error("Closing the tab");
-}
-
-function findParamByName(name) {
-	return ;
 }
 
 function joined() {	
@@ -266,8 +273,9 @@ function joined() {
 	if (joinedButton) {
 		console.error("Clicking joined button");
 		joinedButton.click();
+		return true;
 	}
-	NEXT_OPERATION_READY = true;
+	return false;
 }
 
 function zecChannel(){
@@ -286,8 +294,9 @@ function zecChannel(){
 	if (zecBotChannel) {
 		console.error("open zec channel");
 		triggerMouseEvent (zecBotChannel, "mousedown");
+		return true;
 	}
-	NEXT_OPERATION_READY = true;
+	return false;
 }
 
 function joinChannelOrGroup() {
@@ -296,8 +305,9 @@ function joinChannelOrGroup() {
 	if (joinButton) {
 		console.error("join channel/group");
 		joinButton.click();
+		return true;
 	}
-	NEXT_OPERATION_READY = true;
+	return false;
 }
 
 function joinChats() {
@@ -307,8 +317,9 @@ function joinChats() {
 	if (joinChatsButton) {
 		console.error("Clicking Join chats button");
 		joinChatsButton.click();
+		return true;
 	}
-	NEXT_OPERATION_READY = true;
+	return false;
 }
 
 function findButtonByName(name) {
@@ -353,8 +364,10 @@ function goToChannelOrGroup() {
 	if (channelButton) {
 		console.error("Opening channel/group");
 		channelButton.click();
+		return true;
 	}
-	NEXT_OPERATION_READY = true;
+	
+	return false;
 }
 	
 function closeEmoji() {
@@ -363,8 +376,9 @@ function closeEmoji() {
 	if (emojiButton[0]) {
 		console.error("Clicking emoji button");
 		triggerMouseEvent (emojiButton[0], "mousedown");
+		return true;
 	}
-	NEXT_OPERATION_READY = true;
+	return false;
 }
 
 function triggerMouseEvent (node, eventType) {
@@ -372,18 +386,6 @@ function triggerMouseEvent (node, eventType) {
 	clickEvent.initEvent (eventType, true, true);
 	node.dispatchEvent (clickEvent);
 }
-
-function callNextOperation(){
-	console.error("Requesting next operation..!");
-	var request = new XMLHttpRequest();
-	request.open('GET', 'https://localhost:8080/zecbot/', false);
-	request.send(null);
-	if (request.status == 200) {
-		var operation = request.responseText;
-		console.error("Calling operation: " + operation);
-		window[operation]();
-	}
-}	
 
 function getCurrentDateTime() {
 	var today = new Date();

@@ -384,23 +384,22 @@ function getCurrentDateTime() {
 function btcChannel(){
 	// go back to original channel
 	var allChannels = document.getElementsByClassName("im_dialog");
-	var zecBotChannel;
+	var btcBotChannel;
 
 	for (var i = 0; i < allChannels.length; i++) {
 		if (allChannels[i].text.includes("BTC Click Bot")) {
-			zecBotChannel = allChannels[i];
+			btcBotChannel = allChannels[i];
 			break;
 		}
 	}
 
-	// open zec bot channel
-	if (zecBotChannel) {
-		console.error("open zec channel");
-		triggerMouseEvent (zecBotChannel, "mousedown");
+	// open btc bot channel
+	if (btcBotChannel) {
+		console.error("open btc channel");
+		triggerMouseEvent (btcBotChannel, "mousedown");
 		return true;
 	}
 	return false;
 }
-
 
 startBTCFarm();

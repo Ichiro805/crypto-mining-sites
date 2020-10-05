@@ -1,31 +1,45 @@
 (function(){
-	joinChats();
 	run_bot();
 })();
 
 var NEXT_OPERATION_READY = true;
 
+let visitedSites = 0;
+
 let totalChannelsJoined = 0;
 	
 let calledOperations = 0;
 
+let waitingForTasksRetry = 0;
+
 var startTime = performance.now();
 
-const earningType = {VISIT_SITE: 0, JOIN_CHANNEL: 1, MESSAGE_BOT: 2};
+var joiningChannels = false;
 
-Object.freeze(earningType);
+var visitingSites = true;
 
-var controlEarningsType = earningType.JOIN_CHANNEL;
+let controlVisitedSites = 0;
+
+var wasJoiningChannels = false;
+
+var wasVisitingSites = false;
 		
 function run_bot() {
+	window.name="myMainWindow";
+	
 	window.setInterval(function(){
 		console.error("--------------------------========================------------------------");
-		switch (controlEarningsType) {
-			case earningType.JOIN_CHANNEL:
+		if (joiningChannels) {
+				console.error("Joining channels");
 				joinChannel();
-			case earningType.VISIT_SITE:
+		} else if (visitingSites) {
+				console.error("Visiting sites");
 				visitSite();
-			case earningType.MESSAGE_BOT:
+				
+				// TODO
+				controlEarningsType = "JOIN";
+				joinChats();
+		} else {
 				messageBot();
 		}
 		var timeNow = performance.now();
@@ -34,28 +48,80 @@ function run_bot() {
 }
 
 function joinChannel() {
-	console.error("Value of flag is: " + NEXT_OPERATION_READY);
-	if (NEXT_OPERATION_READY && validate()) {
-		calledOperations++;
-		console.error("Called operations: " + calledOperations);
-		if (calledOperations % 4 == 0) {
-			totalChannelsJoined++;
-			console.error("Total channels joined: " + totalChannelsJoined);
-			calledOperations = 0;
+	
+	if (!wasJoiningChannels) {
+		joinChannel();
+		sleep(5000);
+	} else {
+		console.error("Value of flag is: " + NEXT_OPERATION_READY);
+		if (NEXT_OPERATION_READY && validateJoinChannel()) {
+			calledOperations++;
+			console.error("Called operations: " + calledOperations);
+			if (calledOperations % 4 == 0) {
+				totalChannelsJoined++;
+				console.error("Total channels joined: " + totalChannelsJoined);
+				calledOperations = 0;
+				
+				// every 10 joined channels start visiting sites
+				if (totalChannelsJoined % 10 == 0) {
+					joiningChannels = false;
+					visitingSites = true;
+					wasVisitingSites = false;
+				}
+			}
+			callNextOperation();
 		}
-		callNextOperation();
+		if (joiningChannels) {
+			wasJoiningChannels = true;
+		}
 	}
 }
 
 function visitSite() {
-	
+	if (!wasVisitingSites) {
+		startVisitingSites();
+		sleep(5000);
+	} else {
+		if (validateVisitSite()) {
+			visitedSites++;
+			console.error("Visited sites: " + visitedSites);
+			
+			// click go to website
+			goToWebsite();
+			sleep(5000);
+			
+			// open the website
+			var timeToSleep = openWebsite();
+			
+			sleep(5000);
+			
+			// close the tab
+			closeCurrentTab();
+			
+			sleep(timeToSleep);
+			
+			// every 10 sites visited start joining channels
+			if (visitedSites % 10 == 0) {
+				visitingSites = false;
+				joiningChannels = true;
+				wasJoiningChannels = false;
+			}
+		}
+		if (visitingSites) {
+			wasVisitingSites = true;
+		}
+	}
 }
 
 function messageBot() {
 	
 }
 
-function validate() {
+function validateVisitSite() {
+	return true;
+}
+
+function validateJoinChannel() {
 	var result = true;
 	var message = document.getElementsByClassName("im_message_text");
 	
@@ -63,22 +129,32 @@ function validate() {
 	
 	if (message[message.length - 1].innerHTML.includes("We cannot find you") || message[message.length - 1].innerHTML.includes("You already completed this task")){
 		skipChannel();
-		sleep();
+		sleep(5000);
+		joinChats();
 		result = false;
 	}
 	if (message[message.length - 1].innerHTML.includes("There is a new chat for you to join")) {
 		result = false;
+		joinChats();
 	}
 	
-	if (message[message.length - 1].innerHTML.includes("Sorry, there are no new ads available")) {
+	if (message[message.length - 1].innerHTML.includes("Sorry, there are no new ads available.") || message[message.length - 1].innerHTML.includes("Join chats")) {
 		console.error("Waiting for new tasks");
-		sleep();
+		sleep(5000);
 		result = false;
+		waitingForTasksRetry++;
+		
+		// every 5 waits try to refresh the content by calling joinChats();
+		if (waitingForTasksRetry % 2 == 0) {
+			joinChats();
+			// TODO
+			visitingSites = true;
+			joiningChannels = false;
+		}
 	}
 	
 	if (!result) {
 		zecChannel();
-		joinChats();
 	}
 	
 	console.error("Validation is: " + result);
@@ -86,12 +162,13 @@ function validate() {
 	return result;
 }
 
-function sleep() {
+function sleep(ms) {
 	var request = new XMLHttpRequest();
 	request.open('GET', 'https://localhost:8080/sleep', false);
+	request.setRequestHeader("Sleep-Time", ms);
 	request.send(null);
 	if (request.status == 200) {
-		console.error("Sleeping");
+		console.error("Sleeping was finished");
 	}
 }
 
@@ -121,6 +198,57 @@ function skipChannel() {
 // CHANNEL_INVALID
 
 // FLOOD_WAIT_52915
+
+function startVisitingSites() {
+	var visitSitesButton = findButtonByName("Visit sites");
+	
+	if (visitSitesButton) {
+		console.error("Clicking Visit sites button");
+		visitSitesButton.click();
+	}
+}
+
+function goToWebsite() {
+	var visitSiteButton = findLinkByName("Go to website");
+	if (visitSiteButton) {
+		visitSiteButton.click();
+	}
+}
+
+function openWebsite() {
+	var okButton = findButtonByName("OK");
+	
+	var timeToSleep = 11000;
+	if (okButton) {
+		// get the url and check wheter it is doge.click and if so wait a little bit more
+		// TODO try to find exactly how much time we have to wait
+		//var url = document.getElementsByTagName("my-i18n-param")[0].innerText;
+		
+		//if (url.includes("doge.click")) {
+		//	timeToSleep = 61000;
+		//}
+		okButton.click();
+	}
+	
+	return timeToSleep;
+}
+
+function closeCurrentTab() {
+	// does not close the tab, but returns the user to the previous tab which has oppened the current tab
+	// it is not possible to close tab which was not opened by script
+	
+	if (window.name!='myMainWindow') {
+	  window.open(location.href,"myMainWindow")
+	  window.close();
+	}
+
+	//window.open('','_parent','');
+	//window.focus();
+}
+
+function findParamByName(name) {
+	return ;
+}
 
 function joined() {	
 	// find joined button and click it
@@ -174,17 +302,7 @@ function joinChannelOrGroup() {
 }
 
 function joinChats() {
-	var buttons = document.getElementsByTagName("button");
-	var searchText = ":mega: Join chats";
-	var joinChatsButton;
-
-	// for each button find the button with proper name
-	for (var i = 0; i < buttons.length; i++) {
-	  if (buttons[i].textContent == searchText) {
-		joinChatsButton = buttons[i];
-		break;
-	  }
-	}
+	var joinChatsButton = findButtonByName(":mega: Join chats");
 
 	// start joining chats
 	if (joinChatsButton) {
@@ -194,17 +312,42 @@ function joinChats() {
 	NEXT_OPERATION_READY = true;
 }
 
-function goToChannelOrGroup() {
+function findButtonByName(name) {
+	var buttons = document.getElementsByTagName("button");
+	var searchText = ":mega: Join chats";
+	var result;
+
+	// for each button find the button with proper name
+	for (var i = 0; i < buttons.length; i++) {
+	  if (buttons[i].textContent.includes(name)) {
+		result = buttons[i];
+		break;
+	  }
+	}
+	
+	return result;
+}
+
+function findLinkByName(name) {
 	// find last go to group or join channel button
 	var markupButtons = document.getElementsByClassName("btn reply_markup_button");
 
-	var channelButton;
+	var linkButton;
 
 	for (var i = markupButtons.length - 1; i >= 0; i--) {
-		if (markupButtons[i].tagName == "A") {
-			channelButton = markupButtons[i];
+		if (markupButtons[i].tagName == "A" && markupButtons[i].innerHTML.includes(name)) {
+			linkButton = markupButtons[i];
 			break;
 		}
+	}
+	
+	return linkButton;
+}
+
+function goToChannelOrGroup() {	
+	var channelButton = findLinkByName("Go to channel");
+	if (!channelButton) {
+		channelButton = findLinkByName("Go to group");
 	}
 
 	// join the group or the channel

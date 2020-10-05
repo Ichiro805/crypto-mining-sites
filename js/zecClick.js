@@ -111,7 +111,7 @@ async function visitSite() {
 				closeCurrentTab();
 				
 				// every 10 sites visited start joining channels
-				if (visitedSites % 10 == 0) {
+				if (visitedSites % 15 == 0) {
 					visitingSites = false;
 					joiningChannels = true;
 					wasJoiningChannels = false;
@@ -137,11 +137,6 @@ function validateVisitSite() {
 function getLastMessage() {
 	var message = document.getElementsByClassName("im_message_text");
 	return message[message.length - 1].innerHTML;
-}
-
-function getPreviousMessage() {
-	var message = document.getElementsByClassName("im_message_text");
-	return message[message.length - 2].innerHTML;
 }
 
 async function validateJoinChannel() {
@@ -238,9 +233,7 @@ async function openWebsite() {
 		okButton.click();
 		
 		await sleep(1500);
-		var message = getLastMessage();
-		var previousMessage = getPreviousMessage();
-		if (message.includes("Please stay on the site for at least 10 seconds...") || previousMessage.includes("Please stay on the site for at least 10 seconds...")) {
+		if (isDogeClickSite()) {
 			timeToSleep = 10000;
 		} else {
 			timeToSleep = 71000;
@@ -250,6 +243,17 @@ async function openWebsite() {
 	console.error("Time to sleep is: " + timeToSleep);
 	
 	return timeToSleep;
+}
+
+function isDogeClickSite() {
+	var message = document.getElementsByClassName("im_message_text");
+	
+	for (var i = message.length - 4; i < message.length; i++) {
+		if (message[i].innerHTML.includes("Please stay on the site for at least")) {
+			return true;
+		}
+	}
+	return false;
 }
 
 function closeCurrentTab() {

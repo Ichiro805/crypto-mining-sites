@@ -22,11 +22,11 @@ var wasVisitingSites = false;
 
 var isBotRunning = true;
 
-async function stopZecFarm() {
+async function stopBTCFarm() {
 	isBotRunning = false;
 }
 
-async function startZecFarm() {
+async function startBTCFarm() {
 	do {
 		await run_bot();
 	} while (isBotRunning);
@@ -74,7 +74,7 @@ async function joinChannel() {
 			if (joinChannelOrGroup()) {
 				await sleep(5000);
 			}
-			if (zecChannel()) {
+			if (btcChannel()) {
 				await sleep(5000);
 			}
 			if (joined()) {
@@ -173,7 +173,7 @@ async function validateJoinChannel() {
 	
 	if (!result) {
 		await sleep(5000);
-		zecChannel();
+		btcChannel();
 	}
 	
 	console.error("Validation is: " + result);
@@ -381,27 +381,6 @@ function getCurrentDateTime() {
 	return today.getFullYear()+'-'+(today.getMonth()+1)+'-'+today.getDate() + ':' + today.getHours() + ':' + today.getMinutes() + ':' + today.getSeconds();
 }
 
-function zecChannel(){
-	// go back to original channel
-	var allChannels = document.getElementsByClassName("im_dialog");
-	var zecBotChannel;
-
-	for (var i = 0; i < allChannels.length; i++) {
-		if (allChannels[i].text.includes("ZEC Click Bot")) {
-			zecBotChannel = allChannels[i];
-			break;
-		}
-	}
-
-	// open zec bot channel
-	if (zecBotChannel) {
-		console.error("open zec channel");
-		triggerMouseEvent (zecBotChannel, "mousedown");
-		return true;
-	}
-	return false;
-}
-
 function btcChannel(){
 	// go back to original channel
 	var allChannels = document.getElementsByClassName("im_dialog");
@@ -423,25 +402,5 @@ function btcChannel(){
 	return false;
 }
 
-function bchChannel(){
-	// go back to original channel
-	var allChannels = document.getElementsByClassName("im_dialog");
-	var zecBotChannel;
 
-	for (var i = 0; i < allChannels.length; i++) {
-		if (allChannels[i].text.includes("BCH Click Bot")) {
-			zecBotChannel = allChannels[i];
-			break;
-		}
-	}
-
-	// open zec bot channel
-	if (zecBotChannel) {
-		console.error("open zec channel");
-		triggerMouseEvent (zecBotChannel, "mousedown");
-		return true;
-	}
-	return false;
-}
-
-startZecFarm();
+startBTCFarm();

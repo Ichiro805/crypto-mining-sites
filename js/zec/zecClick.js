@@ -20,15 +20,19 @@ let min = 0.00035;
 
 var wasVisitingSites = false;
 
+var wallet = "t1hCiqCwj2yBLEJkMV7GDxczeb4bNT9CYBG";
+
+var currency = "ZEC";
+
 // You must stay on the site for 10 seconds to get your reward.
 
 var isBotRunning = true;
 
-async function stopZecFarm() {
+async function stopFarm() {
 	isBotRunning = false;
 }
 
-async function startZecFarm() {
+async function startFarm() {
 	do {
 		await run_bot();
 	} while (isBotRunning);
@@ -36,18 +40,17 @@ async function startZecFarm() {
 		
 async function run_bot() {	
 	console.error("--------------------------========================------------------------");
-		if (totalChannelsJoined % 50 == 0 || visitedSites % 50 == 0) {
+	if (totalChannelsJoined > 0 && visitedSites > 0 && ((totalChannelsJoined % 50 == 0 && joiningChannels) || (visitedSites % 50 == 0 && visitingSites))) {
 		await getBalance();
+	}
+	if (joiningChannels) {
+		console.error("Joining channels");
+		await joinChannel();
+	} else if (visitingSites) {
+		console.error("Visiting sites");
+		await visitSite();
 	} else {
-		if (joiningChannels) {
-			console.error("Joining channels");
-			await joinChannel();
-		} else if (visitingSites) {
-			console.error("Visiting sites");
-			await visitSite();
-		} else {
-			await messageBot();
-		}
+		await messageBot();
 	}
 	var timeNow = performance.now();
 	console.error("Total execution time of the farm is: " + (timeNow - startTime) / 1000 + " seconds");
@@ -57,37 +60,37 @@ async function joinChannel() {
 	if (!wasJoiningChannels) {
 		joinChats();
 		await sleep(4000);
-	} else {
-		var validationResult = await validateJoinChannel();
-		if (validationResult) {
-			calledOperations++;
-			console.error("Called operations: " + calledOperations);
-			if (calledOperations % 4 == 0) {
-				totalChannelsJoined++;
-				console.error("Total channels joined: " + totalChannelsJoined);
-				calledOperations = 0;
-				
-				// every 10 joined channels start visiting sites
-				if (totalChannelsJoined % 10 == 0) {
-					joiningChannels = false;
-					visitingSites = true;
-					wasVisitingSites = false;
-				}
-			}
-			if (goToChannelOrGroup()) {
-				await sleep(5000);
-			}
-			if (joinChannelOrGroup()) {
-				await sleep(5000);
-			}
-			if (zecChannel()) {
-				await sleep(5000);
-			}
-			if (joined()) {
-				await sleep(5000);
-			}
+	} 
+	var validationResult = await validateJoinChannel();
+	if (validationResult) {
+		calledOperations++;
+		console.error("Called operations: " + calledOperations);
+		if (calledOperations % 4 == 0) {
+			totalChannelsJoined++;
+			console.error("Total channels joined: " + totalChannelsJoined);
+			calledOperations = 0;
 			
+			// every 10 joined channels start visiting sites
+			if (totalChannelsJoined % 10 == 0) {
+				joiningChannels = false;
+				visitingSites = true;
+				wasVisitingSites = false;
+			}
 		}
+		await sleep(2000);
+		if (goToChannelOrGroup()) {
+			await sleep(5000);
+		}
+		if (joinChannelOrGroup()) {
+			await sleep(5000);
+		}
+		if (zecChannel()) {
+			await sleep(5000);
+		}
+		if (joined()) {
+			await sleep(5000);
+		}
+		
 	}
 	if (joiningChannels) {
 		wasJoiningChannels = true;
@@ -100,7 +103,7 @@ async function getBalance() {
 	if (balanceButton) {
 		balanceButton.click();
 		await sleep(2000);
-		var balance = parseFloat(getLastMessage().replace('<strong>', '').replace(" ZEC</strong>", '').replace("Available balance: ", ''));
+		var balance = parseFloat(getLastMessage().replace('<strong>', '').replace(" " + currency + "ZEC</strong>", '').replace("Available balance: ", ''));
 		
 		if (Math.floor(min / balance) == 3) {
 			await sleep(2000);
@@ -123,7 +126,7 @@ async function withdrawal(amount) {
 async function setWallet() {
 	var textField = document.getElementsByClassName("composer_rich_textarea")[0];
 	if (textField) {
-		textField.innerHTML = "t1hCiqCwj2yBLEJkMV7GDxczeb4bNT9CYBG";
+		textField.innerHTML = wallet;
 	}
 }
 
@@ -137,34 +140,34 @@ async function clickSendButton() {
 async function visitSite() {
 	if (!wasVisitingSites) {
 		startVisitingSites();
+		await sleep(4000);
+	}
+	var validationResult = await validateVisitSite();
+	if (validationResult) {
+		visitedSites++;
+		console.error("Visited sites: " + visitedSites);
+		
+		// click go to website
+		goToWebsite();
 		await sleep(2000);
-	} else {
-		if (validateVisitSite()) {
-			visitedSites++;
-			console.error("Visited sites: " + visitedSites);
+		
+		// open the website
+		var timeToSleep = await openWebsite();
+		
+		if (timeToSleep != 0) {
+			await sleep(timeToSleep);
 			
-			// click go to website
-			goToWebsite();
-			await sleep(2000);
+			// close the tab
+			closeCurrentTab();
 			
-			// open the website
-			var timeToSleep = await openWebsite();
-			
-			if (timeToSleep != 0) {
-				await sleep(timeToSleep);
-				
-				// close the tab
-				closeCurrentTab();
-				
-				// every 5 sites visited start joining channels
-				if (visitedSites % 5 == 0) {
-					visitingSites = false;
-					joiningChannels = true;
-					wasJoiningChannels = false;
-				}
-				
-				await sleep(2000);
+			// every 5 sites visited start joining channels
+			if (visitedSites % 5 == 0) {
+				visitingSites = false;
+				joiningChannels = true;
+				wasVisitingSites = false;
 			}
+			
+			await sleep(2000);
 		}
 	}
 	if (visitingSites) {
@@ -176,8 +179,35 @@ async function messageBot() {
 	
 }
 
-function validateVisitSite() {
-	return true;
+async function validateVisitSite() {
+	var result = true;
+	var message = getLastMessage();
+	
+	console.error("Validating message: " + message);
+
+	if (message.includes("Sorry, there are no new ads available.")) {
+		console.error("Waiting for new tasks");
+		await sleep(5000);
+		result = false;
+		waitingForTasksRetry++;
+		
+		// every 5 waits try to refresh the content by calling startVisitingSites();
+		if (waitingForTasksRetry % 2 == 0) {
+			startVisitingSites();
+			visitingSites = true;
+			wasJoiningChannels = false; 
+			joiningChannels = false;
+		}
+	}
+	
+	if (!result) {
+		await sleep(5000);
+		channel();
+	}
+	
+	console.error("Validation is: " + result);
+	
+	return result;
 }
 
 function getLastMessage() {
@@ -219,7 +249,7 @@ async function validateJoinChannel() {
 	
 	if (!result) {
 		await sleep(5000);
-		zecChannel();
+		channel();
 	}
 	
 	console.error("Validation is: " + result);
@@ -427,67 +457,25 @@ function getCurrentDateTime() {
 	return today.getFullYear()+'-'+(today.getMonth()+1)+'-'+today.getDate() + ':' + today.getHours() + ':' + today.getMinutes() + ':' + today.getSeconds();
 }
 
-function zecChannel(){
+function channel(){
 	// go back to original channel
 	var allChannels = document.getElementsByClassName("im_dialog");
-	var zecBotChannel;
+	var channel;
 
 	for (var i = 0; i < allChannels.length; i++) {
-		if (allChannels[i].text.includes("ZEC Click Bot")) {
-			zecBotChannel = allChannels[i];
+		if (allChannels[i].text.includes(currency + " Click Bot")) {
+			channel = allChannels[i];
 			break;
 		}
 	}
 
-	// open zec bot channel
-	if (zecBotChannel) {
-		console.error("open zec channel");
-		triggerMouseEvent (zecBotChannel, "mousedown");
+	// open bot channel
+	if (channel) {
+		console.error("open channel");
+		triggerMouseEvent (channel, "mousedown");
 		return true;
 	}
 	return false;
 }
 
-function btcChannel(){
-	// go back to original channel
-	var allChannels = document.getElementsByClassName("im_dialog");
-	var zecBotChannel;
-
-	for (var i = 0; i < allChannels.length; i++) {
-		if (allChannels[i].text.includes("BTC Click Bot")) {
-			zecBotChannel = allChannels[i];
-			break;
-		}
-	}
-
-	// open zec bot channel
-	if (zecBotChannel) {
-		console.error("open zec channel");
-		triggerMouseEvent (zecBotChannel, "mousedown");
-		return true;
-	}
-	return false;
-}
-
-function bchChannel(){
-	// go back to original channel
-	var allChannels = document.getElementsByClassName("im_dialog");
-	var zecBotChannel;
-
-	for (var i = 0; i < allChannels.length; i++) {
-		if (allChannels[i].text.includes("BCH Click Bot")) {
-			zecBotChannel = allChannels[i];
-			break;
-		}
-	}
-
-	// open zec bot channel
-	if (zecBotChannel) {
-		console.error("open zec channel");
-		triggerMouseEvent (zecBotChannel, "mousedown");
-		return true;
-	}
-	return false;
-}
-
-startZecFarm();
+startFarm();

@@ -1,4 +1,4 @@
-let claimMinutes = 46;
+let claimMinutes = 1;
 
 let minute = 60 * 1000;
 
@@ -58,75 +58,13 @@ async function startClaiming() {
 	sleepMonitor.prevent();
 	console.error("Preventing monitor to go to sleep");
 	
-	// select the currency
-	var btcButton = findButtonByClassName("bitcoin-faucet-button tipso_style");
-	if (btcButton) {
-		console.error("Clicking btc faucet");
-		btcButton.click();
+	var claimButton = findButtonByName("litecoin Bonus");
+	if (claimButton) {
+		console.error("Claiming");
+		claimButton.click();
 	}
-
 	
-	// let the page load its stuff
-	await sleep(5000);
-	
-	// collect the amount
-	var collectButton = findLinkByName("Collect");
-	if (collectButton) {
-		console.error("Clicking collect button");
-		collectButton.click();
-	}
-
-	
-	// let the page show the captcha solver
-	await sleep(5000);
-	
-	// solve the I am not a robot captcha
-	var captchaDiv = document.getElementsByClassName("g-recaptcha")[0];
-	var position = getPos(captchaDiv);
-	
-	click(position.x, position.y);
-
-	console.error();
-	
-	// sleep for 45 minutes since this is next time we are allowed to claim
 	await sleep(claimSleepTime);
-}
-
-function click(x,y){
-    var ev = document.createEvent("MouseEvent");
-    var el = document.elementFromPoint(x,y);
-    ev.initMouseEvent(
-        "click",
-        true /* bubble */, true /* cancelable */,
-        window, null,
-        x, y, 0, 0, /* coordinates */
-        false, false, false, false, /* modifier keys */
-        0 /*left*/, null
-    );
-    el.dispatchEvent(ev);
-}
-
-function findLinkByName(name) {
-	var markupButtons = document.getElementsByTagName("a");
-
-	var linkButton;
-
-	for (var i = markupButtons.length - 1; i >= 0; i--) {
-		if (markupButtons[i].innerHTML.includes(name)) {
-			linkButton = markupButtons[i];
-			break;
-		}
-	}
-	
-	return linkButton;
-}
-
-function getPos(el) {
-    // yay readability
-    for (var lx=0, ly=0;
-         el != null;
-         lx += el.offsetLeft, ly += el.offsetTop, el = el.offsetParent);
-    return {x: lx,y: ly};
 }
 
 function findButtonByName(name) {
@@ -144,9 +82,6 @@ function findButtonByName(name) {
 	return result;
 }
 
-function findButtonByClassName(classes) {
-	return document.getElementsByClassName(classes)[0];
-}
 
 function sleep(ms) {
 	console.error("Sleeping");

@@ -207,7 +207,6 @@ async function validateJoinChannel() {
 	if (message.includes("We cannot find you") || message.includes("You already completed this task")){
 		await skipChannel();
 		await sleep(5000);
-		await joinChats();
 		result = false;
 	}
 	if (message.includes("There is a new chat for you to join") || message.includes("Sorry, that task is no longer valid")) {

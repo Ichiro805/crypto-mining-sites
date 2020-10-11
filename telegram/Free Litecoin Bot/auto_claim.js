@@ -48,16 +48,15 @@ var sleepMonitor = {
 run();
 
 async function run() {
+	console.error("Preventing monitor to go to sleep");
+	// do not let the monitor to go and sleep
+	sleepMonitor.prevent();
 	do {
 		await startClaiming();
 	} while (true);
 }
 
 async function startClaiming() {
-	// do not let the monitor to go and sleep
-	sleepMonitor.prevent();
-	console.error("Preventing monitor to go to sleep");
-	
 	var claimButton = findButtonByName("litecoin Bonus");
 	if (claimButton) {
 		console.error("Claiming");

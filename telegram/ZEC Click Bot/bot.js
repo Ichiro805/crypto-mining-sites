@@ -4,25 +4,27 @@ let totalChannelsJoined = 0;
 
 let waitingForTasksRetry = 0;
 
-var joiningChannels = true;
-
-var visitingSites = false;
-
 let controlVisitedSites = 0;
 
-var wasJoiningChannels = false;
-
 let min = 0.00035;
-
-var wasVisitingSites = false;
 
 var wallet = "t1hCiqCwj2yBLEJkMV7GDxczeb4bNT9CYBG";
 
 var currency = "ZEC";
 
+let JOIN_LIMIT = 20;
+
+let VISIT_LIMIT = 5;
+
+var farmOperations = { VISIT: '0', JOIN: '1', MESSAGE: '2' };
+
+let operation = farmOperations.JOIN;
+
 // You must stay on the site for 10 seconds to get your reward.
 
 var isBotRunning = true;
+
+var isOperationInitialized = false;
 
 async function stopFarm() {
 	isBotRunning = false;
@@ -35,26 +37,36 @@ async function startFarm() {
 }
 		
 async function run_bot() {	
-	/*if (totalChannelsJoined > 0 && visitedSites > 0 && ((totalChannelsJoined % 50 == 0 && joiningChannels) || (visitedSites % 50 == 0 && visitingSites))) {
-		await getBalance();
-	}*/
-	if (joiningChannels) {
-		console.error("Joining channels");
-		await joinChannel();
-	} else if (visitingSites) {
-		console.error("Visiting sites");
-		await visitSite();
-	} else {
-		await messageBot();
+	if (!isOperationInitialized) {
+		await initOperation(operation);
+	}
+	switch (operation) {
+		case farmOperations.JOIN:
+			await joinChannel();
+			break;
+		case farmOperations.VISIT:
+			await visitSite();
+			break;
+		case farmOperations.MESSAGE:
+			break;
 	}
 }
 
+async function initOperation(operation) {
+	switch (operation) {
+		case farmOperations.JOIN:
+			await joinChats();
+			break;
+		case farmOperations.VISIT:
+			await startVisitingSites();
+			break;
+		case farmOperations.MESSAGE:
+			break;
+	}
+	isOperationInitialized = true;
+}
+
 async function joinChannel() {
-	if (!wasJoiningChannels) {
-		await joinChats();
-		await sleep(4000);
-		wasJoiningChannels = true;
-	} 
 	var validationResult = await validateJoinChannel();
 	if (validationResult) {
 		await sleep(2000);
@@ -74,10 +86,8 @@ async function joinChannel() {
 		console.error("Total channels joined: " + totalChannelsJoined);
 		
 		// every 10 joined channels start visiting sites
-		if (totalChannelsJoined % 10 == 0) {
-			joiningChannels = false;
-			visitingSites = true;
-			wasVisitingSites = false;
+		if (totalChannelsJoined % JOIN_LIMIT == 0) {
+			await changeOperation(farmOperations.VISIT);
 		}
 	}
 }
@@ -123,39 +133,32 @@ async function clickSendButton() {
 }
 
 async function visitSite() {
-	if (!wasVisitingSites) {
-		await startVisitingSites();
-		await sleep(4000);
-		wasVisitingSites = true;
-	}
 	var validationResult = await validateVisitSite();
 	if (validationResult) {
 		visitedSites++;
 		console.error("Visited sites: " + visitedSites);
 		
-		// click go to website
 		await goToWebsite();
 		await sleep(2000);
-		
-		// open the website
+
 		var timeToSleep = await openWebsite();
 		
 		if (timeToSleep != 0) {
 			await sleep(timeToSleep);
-			
-			// close the tab
 			await closeCurrentTab();
-			
-			// every 5 sites visited start joining channels
-			if (visitedSites % 5 == 0) {
-				visitingSites = false;
-				joiningChannels = true;
-				wasVisitingSites = false;
-			}
-			
-			await sleep(2000);
 		}
+
+		if (visitedSites % VISIT_LIMIT == 0) {
+			await changeOperation(farmOperations.JOIN);
+		}
+		
+		await sleep(2000);
 	}
+}
+
+function changeOperation(op) {
+	operation = op;
+	isOperationInitialized = false;
 }
 
 async function messageBot() {
@@ -164,7 +167,7 @@ async function messageBot() {
 
 async function validateVisitSite() {
 	var result = true;
-	var message = getLastMessage();
+	var message = await getLastMessage();
 	
 	console.error("Validating message: " + message);
 
@@ -174,12 +177,9 @@ async function validateVisitSite() {
 		result = false;
 		waitingForTasksRetry++;
 		
-		// every 5 waits try to refresh the content by calling startVisitingSites();
+		// TODO: fix this
 		if (waitingForTasksRetry % 2 == 0) {
-			startVisitingSites();
-			visitingSites = true;
-			wasJoiningChannels = false; 
-			joiningChannels = false;
+			await changeOperation(farmOperations.VISIT);
 		}
 	}
 	
@@ -207,6 +207,7 @@ async function validateJoinChannel() {
 	if (message.includes("We cannot find you") || message.includes("You already completed this task")){
 		await skipChannel();
 		await sleep(5000);
+		await joinChats();
 		result = false;
 	}
 	if (message.includes("There is a new chat for you to join") || message.includes("Sorry, that task is no longer valid")) {

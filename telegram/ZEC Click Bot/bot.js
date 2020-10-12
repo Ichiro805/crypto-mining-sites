@@ -1,3 +1,5 @@
+//https://web.telegram.org/#/im?p=@Zcash_click_bot
+
 let visitedSites = 0;
 
 let totalChannelsJoined = 0;
@@ -20,20 +22,12 @@ var farmOperations = { VISIT: '0', JOIN: '1', MESSAGE: '2' };
 
 let operation = farmOperations.JOIN;
 
-// You must stay on the site for 10 seconds to get your reward.
-
-var isBotRunning = true;
-
 var isOperationInitialized = false;
-
-async function stopFarm() {
-	isBotRunning = false;
-}
 
 async function startFarm() {
 	do {
 		await run_bot();
-	} while (isBotRunning);
+	} while (true);
 }
 		
 async function run_bot() {	
@@ -176,10 +170,10 @@ async function validateVisitSite() {
 		await sleep(5000);
 		result = false;
 		waitingForTasksRetry++;
-		
 		// TODO: fix this
 		if (waitingForTasksRetry % 2 == 0) {
 			await changeOperation(farmOperations.VISIT);
+			waitingForTasksRetry = 0;
 		}
 	}
 	
@@ -220,13 +214,9 @@ async function validateJoinChannel() {
 		await sleep(5000);
 		result = false;
 		waitingForTasksRetry++;
-		
-		// every 5 waits try to refresh the content by calling joinChats();
 		if (waitingForTasksRetry % 2 == 0) {
-			await joinChats();
-			// TODO
-			visitingSites = true;
-			joiningChannels = false;
+			await changeOperation(farmOperations.JOIN);
+			waitingForTasksRetry = 0;
 		}
 	}
 	
@@ -385,6 +375,22 @@ function findButtonByName(name) {
 	return result;
 }
 
+function findLinkByNames(name1, name2) {
+	// find last go to group or join channel button
+	var markupButtons = document.getElementsByClassName("btn reply_markup_button");
+
+	var linkButton;
+
+	for (var i = markupButtons.length - 1; i >= 0; i--) {
+		if (markupButtons[i].tagName == "A" && (markupButtons[i].innerHTML.includes(name1) || markupButtons[i].innerHTML.includes(name2))) {
+			linkButton = markupButtons[i];
+			break;
+		}
+	}
+	
+	return linkButton;
+}
+
 function findLinkByName(name) {
 	// find last go to group or join channel button
 	var markupButtons = document.getElementsByClassName("btn reply_markup_button");
@@ -402,10 +408,7 @@ function findLinkByName(name) {
 }
 
 function goToChannelOrGroup() {	
-	var channelButton = findLinkByName("Go to channel");
-	if (!channelButton) {
-		channelButton = findLinkByName("Go to group");
-	}
+	var channelButton = findLinkByNames("Go to channel", "Go to group");
 
 	// join the group or the channel
 	if (channelButton) {
@@ -432,11 +435,6 @@ function triggerMouseEvent (node, eventType) {
 	var clickEvent = document.createEvent ('MouseEvents');
 	clickEvent.initEvent (eventType, true, true);
 	node.dispatchEvent (clickEvent);
-}
-
-function getCurrentDateTime() {
-	var today = new Date();
-	return today.getFullYear()+'-'+(today.getMonth()+1)+'-'+today.getDate() + ':' + today.getHours() + ':' + today.getMinutes() + ':' + today.getSeconds();
 }
 
 function channel(){

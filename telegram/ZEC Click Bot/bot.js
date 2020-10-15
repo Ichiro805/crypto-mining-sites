@@ -1,5 +1,55 @@
 //https://web.telegram.org/#/im?p=@Zcash_click_bot
 
+var sleepMonitor = {
+    prevent: function() {
+        if (!this._video) {
+            this._init();
+        }
+
+        this._video.setAttribute('loop', 'loop');
+        this._video.play();
+    },
+    allow: function() {
+        if (!this._video) {
+            return;
+        }
+
+        this._video.removeAttribute('loop');
+        this._video.pause();
+    },
+    _init: function() {
+        this._video = document.createElement('video');
+        this._video.setAttribute('width', '10');
+        this._video.setAttribute('height', '10');
+        this._video.style.position = 'absolute';
+        this._video.style.top = '-10px';
+        this._video.style.left = '-10px';
+
+        var source_mp4 = document.createElement('source');
+        source_mp4.setAttribute('src', 'https://github.com/ivanmaeder/computer-sleep/raw/master/resources/muted-blank.mp4');
+        source_mp4.setAttribute('type', 'video/mp4');
+        this._video.appendChild(source_mp4);
+
+        var source_ogg = document.createElement('source');
+        source_ogg.setAttribute('src', 'https://github.com/ivanmaeder/computer-sleep/raw/master/resources/muted-blank.ogv');
+        source_ogg.setAttribute('type', 'video/ogg');
+        this._video.appendChild(source_ogg);
+
+        document.body.appendChild(this._video);
+    },
+    _video: null
+}
+
+// Variable to represent chat object
+var chat = function(name, timeOfJoin, timeUntillReward) {
+	this.name = name;
+	this.timeOfJoin = timeOfJoin;
+	this.timeUntillReward = timeUntillReward;
+}
+
+// Array of Chats which identifies which chat the user joined
+var chatsJoined = [];
+
 let visitedSites = 0;
 
 let totalChannelsJoined = 0;
@@ -14,17 +64,21 @@ var wallet = "t1hCiqCwj2yBLEJkMV7GDxczeb4bNT9CYBG";
 
 var currency = "ZEC";
 
-let JOIN_LIMIT = 20;
+let JOIN_LIMIT = 10;
 
-let VISIT_LIMIT = 5;
+let VISIT_LIMIT = 20;
+
+let RETRY_LIMIT = 5;
 
 var farmOperations = { VISIT: '0', JOIN: '1', MESSAGE: '2' };
 
-let operation = farmOperations.JOIN;
+let operation;
 
 var isOperationInitialized = false;
 
 async function startFarm() {
+	sleepMonitor.prevent();
+	changeOperation(farmOperations.JOIN);
 	do {
 		await run_bot();
 	} while (true);
@@ -44,6 +98,8 @@ async function run_bot() {
 		case farmOperations.MESSAGE:
 			break;
 	}
+
+	// TODO leave chats 
 }
 
 async function initOperation(operation) {
@@ -63,19 +119,21 @@ async function initOperation(operation) {
 async function joinChannel() {
 	var validationResult = await validateJoinChannel();
 	if (validationResult) {
-		await sleep(2000);
+		await sleep(3000);
 		if (await goToChannelOrGroup()) {
-			await sleep(5000);
+			await sleep(6000);
 		}
 		if (await joinChannelOrGroup()) {
-			await sleep(5000);
+			await sleep(6000);
 		}
-		if (await channel()) {
-			await sleep(5000);
+		if (await openChannel(currency + " Click Bot")) {
+			await sleep(6000);
 		}
 		if (await joined()) {
-			await sleep(5000);
+			await sleep(6000);
 		}
+		// Push the joined chat into the collection of all joined chats
+		//chatsJoined.push(new chat(chatName, joinedTime, timeUntillReward));
 		totalChannelsJoined++;
 		console.error("Total channels joined: " + totalChannelsJoined);
 		
@@ -86,16 +144,30 @@ async function joinChannel() {
 	}
 }
 
+function refresh() {
+	// $( ".im_history_selected_wrap" ).load(window.location.href + " .im_history_selected_wrap" );
+	 var x = document.getElementsByClassName('im_history_selected_wrap')[0].innerHTML;
+     document.getElementsByClassName('im_history_selected_wrap')[0].innerHTML = x;
+}
+
+function openMenu() {
+	var menu = findButtonByName("Menu");
+	if (menu) {
+		console.error("Opening menu");
+		menu.click();
+	}
+}
+
 async function getBalance() {
 	var balanceButton = findButtonByName("Balance");
 	
 	if (balanceButton) {
 		balanceButton.click();
-		await sleep(2000);
+		await sleep(3000);
 		var balance = parseFloat(getLastMessage().replace('<strong>', '').replace(" " + currency + "ZEC</strong>", '').replace("Available balance: ", ''));
 		
 		if (Math.floor(min / balance) == 3) {
-			await sleep(2000);
+			await sleep(3000);
 			//withdrawal(min);
 		}
 	}
@@ -105,9 +177,9 @@ async function withdrawal(amount) {
 	var withdraw = findButtonByName("Withdraw");
 	if (withdraw) {
 		withdraw.click();
-		await sleep(1000);
+		await sleep(3000);
 		setWallet();
-		await sleep(1000);
+		await sleep(3000);
 		clickSendButton();
 	}
 }
@@ -133,7 +205,7 @@ async function visitSite() {
 		console.error("Visited sites: " + visitedSites);
 		
 		await goToWebsite();
-		await sleep(2000);
+		await sleep(3000);
 
 		var timeToSleep = await openWebsite();
 		
@@ -146,13 +218,14 @@ async function visitSite() {
 			await changeOperation(farmOperations.JOIN);
 		}
 		
-		await sleep(2000);
+		await sleep(3000);
 	}
 }
 
-function changeOperation(op) {
+async function changeOperation(op) {
 	operation = op;
 	isOperationInitialized = false;
+	await openMenu();
 }
 
 async function messageBot() {
@@ -167,19 +240,20 @@ async function validateVisitSite() {
 
 	if (message.includes("Sorry, there are no new ads available.")) {
 		console.error("Waiting for new tasks");
-		await sleep(5000);
+		await sleep(6000);
 		result = false;
 		waitingForTasksRetry++;
 		// TODO: fix this
-		if (waitingForTasksRetry % 2 == 0) {
-			await changeOperation(farmOperations.VISIT);
+		console.error("RETRY: " + waitingForTasksRetry + " from VISIT");
+		if (waitingForTasksRetry % RETRY_LIMIT == 0) {
+			await changeOperation(farmOperations.JOIN);
 			waitingForTasksRetry = 0;
 		}
 	}
 	
 	if (!result) {
-		await sleep(5000);
-		await channel();
+		await sleep(6000);
+		await openChannel(currency + " Click Bot");
 	}
 	
 	console.error("Validation is: " + result);
@@ -200,7 +274,7 @@ async function validateJoinChannel() {
 	
 	if (message.includes("We cannot find you") || message.includes("You already completed this task")){
 		await skipChannel();
-		await sleep(5000);
+		await sleep(6000);
 		await joinChats();
 		result = false;
 	}
@@ -208,21 +282,27 @@ async function validateJoinChannel() {
 		result = false;
 		await joinChats();
 	}
+	if (message.includes("There is a new chat for you to join")) {
+		await sleep(6000);
+		await joinChats();
+		result = false;
+	}
 	
 	if (message.includes("Sorry, there are no new ads available.") || message.includes("Join chats")) {
 		console.error("Waiting for new tasks");
-		await sleep(5000);
+		await sleep(6000);
 		result = false;
 		waitingForTasksRetry++;
-		if (waitingForTasksRetry % 2 == 0) {
-			await changeOperation(farmOperations.JOIN);
+		console.error("RETRY: " + waitingForTasksRetry + " from JOIN");
+		if (waitingForTasksRetry % RETRY_LIMIT == 0) {
+			await changeOperation(farmOperations.VISIT);
 			waitingForTasksRetry = 0;
 		}
 	}
 	
 	if (!result) {
-		await sleep(5000);
-		await channel();
+		await sleep(6000);
+		await openChannel(currency + " Click Bot");
 	}
 	
 	console.error("Validation is: " + result);
@@ -280,11 +360,11 @@ async function openWebsite() {
 		console.error("Opening the website");
 		okButton.click();
 		
-		await sleep(1500);
+		await sleep(2500);
 		if (isDogeClickSite()) {
-			timeToSleep = 10000;
+			timeToSleep = 20000;
 		} else {
-			timeToSleep = 71000;
+			timeToSleep = 72000;
 		}
 	}
 	
@@ -392,8 +472,12 @@ function findLinkByNames(name1, name2) {
 }
 
 function findLinkByName(name) {
+	return findLinkByName("btn reply_markup_button", name);
+}
+
+function findLinkByName(classes, name) {
 	// find last go to group or join channel button
-	var markupButtons = document.getElementsByClassName("btn reply_markup_button");
+	var markupButtons = document.getElementsByClassName(classes);
 
 	var linkButton;
 
@@ -437,25 +521,84 @@ function triggerMouseEvent (node, eventType) {
 	node.dispatchEvent (clickEvent);
 }
 
-function channel(){
-	// go back to original channel
-	var allChannels = document.getElementsByClassName("im_dialog");
-	var channel;
+async function leaveAllChannels() {
+	var allChannels = document.getElementsByClassName("im_dialog_peer");
+
+	console.error("Channels number to leave is: " + allChannels.length);
+
+	if (allChannels.length < 15) {
+		return;
+	}
 
 	for (var i = 0; i < allChannels.length; i++) {
-		if (allChannels[i].text.includes(currency + " Click Bot")) {
+		await leaveChannel(allChannels[i].textContent.trim());
+		await sleep(2000);
+	}
+
+	console.error("Calling recursive to leave the channels");
+
+	leaveAllChannels();
+}
+
+async function leaveChannel(name) {
+	await openChannel(name);
+	await sleep(2500);
+	await openCurrentChannelOptions();
+	await sleep(2500);
+	await leaveCurrentChannel();
+	await sleep(2500);
+	await confirmLeaveCurrentChannel();
+	await sleep(2500);
+}
+
+function openChannel(name) {
+	var allChannels = document.getElementsByClassName("im_dialog");
+	var channelToOpen;
+
+	for (var i = 0; i < allChannels.length; i++) {
+		if (allChannels[i].text.includes(name)) {
 			channel = allChannels[i];
 			break;
 		}
 	}
 
-	// open bot channel
 	if (channel) {
-		console.error("open channel");
+		console.error("open " + name + " channel");
 		triggerMouseEvent (channel, "mousedown");
 		return true;
 	}
+
 	return false;
+}
+
+function openCurrentChannelOptions() {
+	var allPeersInfo = document.getElementsByClassName("tg_head_btn");
+	var currentChannelPeerInfoBtn = allPeersInfo[allPeersInfo.length - 1];
+	if (currentChannelPeerInfoBtn) {
+		currentChannelPeerInfoBtn.click();
+	}
+}
+
+function leaveCurrentChannel() {
+	var leaveButton = document.getElementsByClassName("md_modal_list_peer_action pull-right")[0];
+	var clicked = false;
+	if (leaveButton) {
+		leaveButton.click();
+		clicked = true;
+	} 
+	if (!clicked) {
+		var leaveChannelButton = findLinkByName("md_modal_section_link", "Leave channel");
+		if (leaveChannelButton) {
+			leaveChannelButton.click();
+		}
+	}
+}
+
+function confirmLeaveCurrentChannel() {
+	var confirmLeaveCurrentChannel = document.getElementsByClassName("btn btn-md btn-md-primary")[0];
+	if (confirmLeaveCurrentChannel) {
+		confirmLeaveCurrentChannel.click();
+	}
 }
 
 startFarm();

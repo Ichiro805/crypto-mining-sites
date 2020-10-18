@@ -1,5 +1,9 @@
 //https://web.telegram.org/#/im?p=@Zcash_click_bot
 
+// TODO
+// check for connection
+// close window on opening website
+
 var sleepMonitor = {
     prevent: function() {
         if (!this._video) {
@@ -41,10 +45,10 @@ var sleepMonitor = {
 }
 
 // Variable to represent chat object
-var chat = function(name, timeOfJoin, timeUntillReward) {
+var chat = function(name, dateOfJoin, getEstimatedLeaveDate) {
 	this.name = name;
-	this.timeOfJoin = timeOfJoin;
-	this.timeUntillReward = timeUntillReward;
+	this.dateOfJoin = dateOfJoin;
+	this.getEstimatedLeaveDate = getEstimatedLeaveDate;
 }
 
 // Array of Chats which identifies which chat the user joined
@@ -66,7 +70,7 @@ var currency = "ZEC";
 
 let JOIN_LIMIT = 10;
 
-let VISIT_LIMIT = 20;
+let VISIT_LIMIT = 10;
 
 let RETRY_LIMIT = 5;
 
@@ -79,8 +83,15 @@ var isOperationInitialized = false;
 async function startFarm() {
 	sleepMonitor.prevent();
 	changeOperation(farmOperations.JOIN);
+
+	var nextWaitDate = getCurrentDate();
+	nextWaitDate.setTime(nextWaitDate.getTime() + 10 * 60 * 1000);
 	do {
 		await run_bot();
+		if (getCurrentDate().getTime() >= nextWaitDate.getTime()) {
+			await sleep(5 * 60 * 1000);
+			nextWaitDate.setTime(nextWaitDate.getTime() + 10 * 60 * 1000);
+		}
 	} while (true);
 }
 		
@@ -99,7 +110,7 @@ async function run_bot() {
 			break;
 	}
 
-	// TODO leave chats 
+	await leaveChannelsAfterReward(chatsJoined);
 }
 
 async function initOperation(operation) {
@@ -119,21 +130,23 @@ async function initOperation(operation) {
 async function joinChannel() {
 	var validationResult = await validateJoinChannel();
 	if (validationResult) {
-		await sleep(3000);
+		await sleep(2000);
 		if (await goToChannelOrGroup()) {
-			await sleep(6000);
+			await sleep(5000);
 		}
+		var channelName = await getCurrentChannelName();
 		if (await joinChannelOrGroup()) {
-			await sleep(6000);
+			await sleep(5000);
 		}
 		if (await openChannel(currency + " Click Bot")) {
-			await sleep(6000);
+			await sleep(5000);
 		}
 		if (await joined()) {
-			await sleep(6000);
+			await sleep(5000);
 		}
 		// Push the joined chat into the collection of all joined chats
-		//chatsJoined.push(new chat(chatName, joinedTime, timeUntillReward));
+		var hoursUntillReward = await getHoursUntillReward();
+		chatsJoined.push(new chat(channelName, getCurrentDate(), getEstimatedLeaveDate(hoursUntillReward)));
 		totalChannelsJoined++;
 		console.error("Total channels joined: " + totalChannelsJoined);
 		
@@ -201,23 +214,24 @@ async function clickSendButton() {
 async function visitSite() {
 	var validationResult = await validateVisitSite();
 	if (validationResult) {
-		visitedSites++;
-		console.error("Visited sites: " + visitedSites);
-		
-		await goToWebsite();
-		await sleep(3000);
+		console.error("Try to open website");
+		if (await goToWebsite()) {
+			await sleep(3000);
 
-		var timeToSleep = await openWebsite();
-		
-		if (timeToSleep != 0) {
-			await sleep(timeToSleep);
-			await closeCurrentTab();
-		}
+			var timeToSleep = await openWebsite();
+			
+			if (timeToSleep != 0) {
+				await sleep(timeToSleep);
+				await closeCurrentTab();
+			}
 
-		if (visitedSites % VISIT_LIMIT == 0) {
-			await changeOperation(farmOperations.JOIN);
+			visitedSites++;
+			console.error("Visited sites: " + visitedSites);
+			
+			if (visitedSites % VISIT_LIMIT == 0) {
+				await changeOperation(farmOperations.JOIN);
+			}
 		}
-		
 		await sleep(3000);
 	}
 }
@@ -311,7 +325,9 @@ async function validateJoinChannel() {
 }
 
 function sleep(ms) {
-	console.error("Sleeping");
+	var sleepUntil = getCurrentDate();
+	sleepUntil.setTime(sleepUntil.getTime() + ms);
+	console.error("Sleeping until " + sleepUntil);
 	return new Promise(resolve => setTimeout(resolve, ms));
 }
 
@@ -349,7 +365,9 @@ function goToWebsite() {
 	if (visitSiteButton) {
 		console.error("Clicking on go to website");
 		visitSiteButton.click();
+		return true;
 	}
+	return false;
 }
 
 async function openWebsite() {
@@ -472,16 +490,18 @@ function findLinkByNames(name1, name2) {
 }
 
 function findLinkByName(name) {
-	return findLinkByName("btn reply_markup_button", name);
+	console.error("Calling with classes");
+	return findLinkByNameClasses("btn reply_markup_button", name);
 }
 
-function findLinkByName(classes, name) {
+function findLinkByNameClasses(classes, name) {
 	// find last go to group or join channel button
 	var markupButtons = document.getElementsByClassName(classes);
-
+	console.error("Link buttons to check: " + markupButtons.length);
 	var linkButton;
 
 	for (var i = markupButtons.length - 1; i >= 0; i--) {
+		console.error("Checking link with name: " + markupButtons[i].innerHTML);
 		if (markupButtons[i].tagName == "A" && markupButtons[i].innerHTML.includes(name)) {
 			linkButton = markupButtons[i];
 			break;
@@ -521,6 +541,22 @@ function triggerMouseEvent (node, eventType) {
 	node.dispatchEvent (clickEvent);
 }
 
+async function leaveChannelsAfterReward(chats) {
+	console.error("Checking " + chats.length + " chats to leave");
+	for (var i = chats.length - 1; i >= 0; i--) {
+		var chat = chats[i];
+		console.error("Checking if chat: " + chat.name + " is expired");
+		var chatLeaveDate = chat.getEstimatedLeaveDate;
+		if (getCurrentDate().getTime() >= chatLeaveDate.getTime()) {
+			console.error("Leaving channel: " + chat.name);
+			await leaveChannel(chat.name);
+			await sleep(2000);
+			// remove the chat from the collection
+			chats.splice(i, 1);
+		}
+	}
+}
+
 async function leaveAllChannels() {
 	var allChannels = document.getElementsByClassName("im_dialog_peer");
 
@@ -534,21 +570,21 @@ async function leaveAllChannels() {
 		await leaveChannel(allChannels[i].textContent.trim());
 		await sleep(2000);
 	}
-
-	console.error("Calling recursive to leave the channels");
-
-	leaveAllChannels();
 }
 
 async function leaveChannel(name) {
-	await openChannel(name);
-	await sleep(2500);
-	await openCurrentChannelOptions();
-	await sleep(2500);
-	await leaveCurrentChannel();
-	await sleep(2500);
-	await confirmLeaveCurrentChannel();
-	await sleep(2500);
+	if (await openChannel(name)) {
+		await sleep(2500);
+	}
+	if (await openCurrentChannelOptions()) {
+		await sleep(2500);
+	}
+	if (await leaveCurrentChannel()) {
+		await sleep(2500);
+	}
+	if (await confirmLeaveCurrentChannel()) {
+		await sleep(2500);
+	}
 }
 
 function openChannel(name) {
@@ -575,8 +611,12 @@ function openCurrentChannelOptions() {
 	var allPeersInfo = document.getElementsByClassName("tg_head_btn");
 	var currentChannelPeerInfoBtn = allPeersInfo[allPeersInfo.length - 1];
 	if (currentChannelPeerInfoBtn) {
+		console.error("Opening current channel options");
 		currentChannelPeerInfoBtn.click();
+		return true;
 	}
+
+	return false;
 }
 
 function leaveCurrentChannel() {
@@ -587,18 +627,81 @@ function leaveCurrentChannel() {
 		clicked = true;
 	} 
 	if (!clicked) {
-		var leaveChannelButton = findLinkByName("md_modal_section_link", "Leave channel");
+		var leaveChannelButton = findLinkByNameClasses("md_modal_section_link", "Leave channel");
 		if (leaveChannelButton) {
+			console.error("Leaving current openned channel");
 			leaveChannelButton.click();
+			return true;
 		}
 	}
+
+	return false;
 }
 
 function confirmLeaveCurrentChannel() {
 	var confirmLeaveCurrentChannel = document.getElementsByClassName("btn btn-md btn-md-primary")[0];
 	if (confirmLeaveCurrentChannel) {
+		console.error("Confirming to leave the current channel");
 		confirmLeaveCurrentChannel.click();
+		return true;
 	}
+	return false;
+}
+
+function getCurrentChannelName() {
+	console.error("Getting current channel name");
+	return document.getElementsByClassName("tg_head_peer_title")[0].textContent.trim();
+}
+
+function getCurrentDate() {
+	return new Date();
+}
+
+function getEstimatedLeaveDate(hoursUntillReward) {
+	var currentDate = new Date();
+	// Add 1 minute bonus to wait for reward time just in case
+	currentDate.setTime(currentDate.getTime() + hoursUntillReward*60*60*1000 + 60_000);
+	return currentDate;
+}
+
+function getHoursUntillRewardFromMessages(depth) {
+	var messages = document.getElementsByClassName("im_message_text");
+	console.error("Searching from: " + depth + " messages total");
+	for (var i = messages.length - 1; i > messages.length - depth - 1; i--) {
+		var msg = messages[i].innerHTML.trim();
+		console.error("MESSAGE[" + (messages.length - i) + "]: " + msg);
+		// You must stay in the channel for at least 168 hours to earn your reward.
+		var startIdxLength = "You must stay in the channel for at least <strong>".length;
+		var startIdx = msg.indexOf("You must stay in the channel for at least <strong>");
+		if (startIdx == -1) {
+			startIdx = msg.indexOf("You must stay in the group for at least <strong>");
+			startIdxLength = "You must stay in the group for at least <strong>".length;
+		}
+		if (startIdx != -1) {
+			var endIdx = msg.indexOf("</strong> hours to earn your reward.");
+			if (endIdx == -1) {
+				endIdx = msg.indexOf("</strong> hour to earn your reward.");
+			}
+			return msg.substring(startIdx + startIdxLength, endIdx).trim();
+		}
+	}
+
+	return "";
+}
+
+async function getHoursUntillReward() {
+	console.error("Getting hours untill reward");
+	var foundHours = false;
+	var hoursUntillReward = "";
+	do {
+		var hoursUntillReward = getHoursUntillRewardFromMessages(2);
+		foundHours = hoursUntillReward != "";
+		console.error("Trying to get hours untill reward");
+		await sleep(500);
+	} while (!foundHours);
+	console.error("Hours untill reward: " + hoursUntillReward);
+
+	return parseInt(hoursUntillReward);
 }
 
 startFarm();

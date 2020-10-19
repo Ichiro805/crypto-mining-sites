@@ -88,10 +88,10 @@ async function startFarm() {
 	nextWaitDate.setTime(nextWaitDate.getTime() + 10 * 60 * 1000);
 	do {
 		await run_bot();
-		if (getCurrentDate().getTime() >= nextWaitDate.getTime()) {
+		/*if (getCurrentDate().getTime() >= nextWaitDate.getTime()) {
 			await sleep(5 * 60 * 1000);
 			nextWaitDate.setTime(nextWaitDate.getTime() + 10 * 60 * 1000);
-		}
+		}*/
 	} while (true);
 }
 		

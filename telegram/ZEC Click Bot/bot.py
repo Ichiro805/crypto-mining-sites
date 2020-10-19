@@ -7,7 +7,9 @@ from enum import Enum
 from datetime import datetime, timedelta
 import time
 from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import StaleElementReferenceException
 import timeit
+import re
 
 # Time which the driver will wait to find component untill timeout exception is raised in seconds
 DRIVER_WAIT_TIME = 10
@@ -24,6 +26,18 @@ RETRY_LIMIT = 2
 BOT_WAIT_TIME = 600
 
 SLEEP_BOT_TIME = SECOND * 60 * 5
+
+class wait_for_text_to_start_with(object):
+    def __init__(self, locator, text_):
+        self.locator = locator
+        self.text = text_
+
+    def __call__(self, driver):
+        try:
+            element_text = EC._find_element(driver, self.locator).text
+            return element_text.startswith(self.text)
+        except StaleElementReferenceException:
+            return False
 
 class Unbuffered(object):
    def __init__(self, stream):
@@ -205,6 +219,18 @@ class Bot:
 				return True
 		return False
 
+	def get_hours_untill_reward(self):
+		try:
+			message = WebDriverWait(self.driver, DRIVER_WAIT_TIME / 2).until(
+				wait_for_text_to_start_with((By.XPATH, "//div[@class='im_message_text']"), "You must stay in the channel for at least")
+			)
+		except TimeoutException:
+			message = WebDriverWait(self.driver, DRIVER_WAIT_TIME / 2).until(
+				wait_for_text_to_start_with((By.XPATH, "//div[@class='im_message_text']"), "You must stay in the group for at least")
+			)
+		print("Message is: ", message.encode("utf-8"))
+		return int(re.search('for at least <strong>.*</strong> hour', message).group(1))
+
 	def init_operation(self):
 		if (self.operation == Operation.JOIN):
 			self.start_join_channel()
@@ -218,7 +244,7 @@ class Bot:
 			self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
 			if self.open_joining_channel():
 				self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
-				channel_name = self.get_current_channel_name()
+				channelName = self.get_current_channel_name()
 				if self.join_openned_channel():
 					self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
 				else:
@@ -227,7 +253,9 @@ class Bot:
 				self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
 				if self.click_button_by_name(["Joined"]):
 					self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
-					print("Joined channel: ", channel_name.encode("utf-8"))
+					hoursUntillReward = self.get_hours_untill_reward()
+					chat = Chat(channelName, hoursUntillReward)
+					print("Joined channel: ", channelName.encode("utf-8"))
 					# TODO construct chat
 		#// Push the joined chat into the collection of all joined chats
 		#var hoursUntillReward = await getHoursUntillReward();

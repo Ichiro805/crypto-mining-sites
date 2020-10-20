@@ -23,21 +23,9 @@ SLEEP_TIME_BETWEEN_COMPONENTS = 5 * SECOND
 RETRY_LIMIT = 2
 
 # Time to run the bot until it pauses for SLEEP_BOT_TIME seconds
-BOT_WAIT_TIME = 600
+BOT_WAIT_TIME = 1200
 
-SLEEP_BOT_TIME = SECOND * 60 * 5
-
-class wait_for_text_to_start_with(object):
-    def __init__(self, locator, text_):
-        self.locator = locator
-        self.text = text_
-
-    def __call__(self, driver):
-        try:
-            element_text = EC._find_element(driver, self.locator).text
-            return element_text.startswith(self.text)
-        except StaleElementReferenceException:
-            return False
+BOT_SLEEP_TIME = SECOND * 60 * 10
 
 class Unbuffered(object):
    def __init__(self, stream):
@@ -57,7 +45,7 @@ class Chat():
 	def __init__(self, name, hoursUntillReward):
 		self.name = name
 		self.joinDate = datetime.now()
-		self.leaveDate = self.joinDate + datetime.timedelta(hours = hoursUntillReward)
+		self.leaveDate = self.joinDate + timedelta(hours = hoursUntillReward)
 
 # Enum defining all supported operations by the bot
 class Operation(Enum):
@@ -89,13 +77,20 @@ class Bot:
 		self.retryLimit = 5
 		# Array indentifying which chats were joined by the bot
 		self.joinedChats = self.load_chats_from_last_run()
+		# Variable to count how many chats the bot has joined
+		self.joinedChatsCount = 0
+		# Variable to count how many sites the bo has visited
+		self.visitedSitesCount = 0
 
 	def sleep(self, ms):
 		print("Sleeping for: ", ms, " ms")
 		time.sleep(ms / 1000)
 
 	def refresh(self):
+		print("Refreshing page")
 		self.driver.get("https://web.telegram.org/#/im?p=@Zcash_click_bot")
+		self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
+		self.driver.refresh()
 
 	def get_last_message(self):
 		messages = WebDriverWait(self.driver, DRIVER_WAIT_TIME).until(
@@ -106,13 +101,15 @@ class Bot:
 	def change_operation(self, new_operation):
 		self.operation = new_operation
 		self.isOperationInitialized = False
-		self.click_button_by_name("Menu")
+		self.refresh()
 
 	def click_ok_popup_button(self):
 		ok_popup_btn = WebDriverWait(self.driver, DRIVER_WAIT_TIME).until(
 			EC.presence_of_element_located((By.XPATH, "//button[@class='btn btn-md btn-md-primary']"))
 		)
 		ok_popup_btn.click()
+		print("Clicking OK button")
+		return True
 
 	def is_button_available(self, name):
 		buttons = WebDriverWait(self.driver, DRIVER_WAIT_TIME).until(
@@ -126,33 +123,37 @@ class Bot:
 				return True
 		return False
 
-	def get_div_content(self, classes):
-		content = WebDriverWait(self.driver, DRIVER_WAIT_TIME).until(
-			EC.presence_of_all_elements_located((By.XPATH, "//div[@class=" + classes + "]"))
-		)
-		return content.text
-
 	def click(self, component_type, names, classes = "btn reply_markup_button"):
 		try:
 			buttons = WebDriverWait(self.driver, DRIVER_WAIT_TIME).until(
 				EC.presence_of_all_elements_located((By.XPATH, "//" + component_type + "[@class='" + classes + "']"))
 			)
+			print("Searching for ", names)
+			print("Total number of buttons found ", len(buttons))
 			for button in reversed(buttons):
 				text = button.text
+				print("Processing button ", button.text)
 				for name in names:
 					if text.strip().find(name.strip()) != -1:
-						print("Clicking '", name.strip(), "' component")
+						print("Clicking '",name.strip(),"' component")
 						button.click()
 						return True
 		except TimeoutException:
 			print("Component was not found on the page in the given timeout")
 		return False
 
+	def send_text(self, text):
+		textArea = WebDriverWait(self.driver, DRIVER_WAIT_TIME).until(
+			EC.presence_of_element_located((By.XPATH, "//div[@class='composer_rich_textarea']"))
+		)
+		textArea.send_keys(text)
+		textArea.send_keys(Keys.ENTER)
+
 	def start_join_channel(self):
-		return self.click_button_by_name(["Join chats"])
+		return self.send_text("/join")
 
 	def start_visit_sites(self):
-		return self.click_button_by_name(["Visit sites"])
+		return self.send_text("/visit")
 
 	def start_message_bots(self):
 		return self.click_button_by_name(["Message bots"])
@@ -164,7 +165,7 @@ class Bot:
 		return self.click("a", names)
 
 	def skip_channel(self):
-		return self.click_link_by_name(["Skip"])
+		return self.send_text("/skip")
 
 	def open_joining_channel(self):
 		return self.click_link_by_name(["Go to channel", "Go to group"])
@@ -177,7 +178,7 @@ class Bot:
 		if message.find("We cannot find you") != -1 or message.find("You already completed this task") != -1 or message.find("There is a new chat for you to join") != -1 or message.find("Sorry, that task is no longer valid") != -1 or message.find("There is a new chat for you to join") != -1:
 			self.skip_channel()
 			self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
-			self.join_channel()
+			self.start_join_channel()
 			result = False
 		elif message.find("Sorry, there are no new ads available.") != -1 or message.find("Join chats") != -1:
 			print("Waiting for new tasks")
@@ -190,7 +191,7 @@ class Bot:
 				self.waitingForTasksRetry = 0
 		
 		if result == False:
-			self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
+			self.sleep(2 * SLEEP_TIME_BETWEEN_COMPONENTS)
 			self.open_channel("ZEC Click Bot")
 		
 		print("Validation is: ", result)
@@ -198,38 +199,41 @@ class Bot:
 		return result
 
 	def get_current_channel_name(self):
-		content = WebDriverWait(self.driver, DRIVER_WAIT_TIME).until(
-			EC.presence_of_all_elements_located((By.XPATH, "//span[@class='tg_head_peer_title']"))
-		)
 		print("Getting current channel name")
+		content = WebDriverWait(self.driver, DRIVER_WAIT_TIME).until(
+			EC.presence_of_all_elements_located((By.CLASS_NAME, "tg_head_peer_title"))
+		)
 		return content[0].text
 
 	def join_openned_channel(self):
 		return self.click("a", ["JOIN"], "btn btn-primary im_start_btn")
 
 	def open_channel(self, channel):
-		all_chats = WebDriverWait(self.driver, DRIVER_WAIT_TIME).until(
-			EC.presence_of_all_elements_located((By.CLASS_NAME, 'im_dialog'))
+		search_box = WebDriverWait(self.driver, DRIVER_WAIT_TIME).until(
+			EC.presence_of_element_located((By.CLASS_NAME, 'im_dialogs_search_field'))
 		)
 
-		for chat in all_chats:
-			if chat.text.strip().find(channel.strip()) != -1:
-				print("Openning channel '", channel.encode("utf-8"), "'")
-				chat.click()
-				return True
-		return False
+		print("Searching for channel ", channel)
+		search_box.send_keys(channel)
+		search_box.send_keys(Keys.ENTER)
+
+		self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
+
+		WebDriverWait(self.driver, DRIVER_WAIT_TIME).until(
+			EC.presence_of_element_located((By.CLASS_NAME, 'im_dialog_wrap'))
+		).click()
+		print("Channel found..! Openning channel..!")
+
+		return True
 
 	def get_hours_untill_reward(self):
-		try:
-			message = WebDriverWait(self.driver, DRIVER_WAIT_TIME / 2).until(
-				wait_for_text_to_start_with((By.XPATH, "//div[@class='im_message_text']"), "You must stay in the channel for at least")
-			)
-		except TimeoutException:
-			message = WebDriverWait(self.driver, DRIVER_WAIT_TIME / 2).until(
-				wait_for_text_to_start_with((By.XPATH, "//div[@class='im_message_text']"), "You must stay in the group for at least")
-			)
-		print("Message is: ", message.encode("utf-8"))
-		return int(re.search('for at least <strong>.*</strong> hour', message).group(1))
+		messages = WebDriverWait(self.driver, DRIVER_WAIT_TIME).until(
+			EC.presence_of_all_elements_located((By.CLASS_NAME, 'im_message_text'))
+		)
+		for message in reversed(messages):
+			print("Processing message: ", message.text.encode("utf-8"))
+			if message.text.find("You must stay in the channel for at least") != -1 or message.text.find("You must stay in the group for at least") != -1:
+				return int(re.search('at least (.+?) hour', message.text).group(1).strip())
 
 	def init_operation(self):
 		if (self.operation == Operation.JOIN):
@@ -238,8 +242,10 @@ class Bot:
 			self.start_visit_sites()
 		else:
 			self.start_message_bots()
+		self.isOperationInitialized = True
+		print("Initializing operation")
 
-	def join_chats(self):
+	def join_chats(self, channelName = None):
 		if self.validate_join_chats():
 			self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
 			if self.open_joining_channel():
@@ -247,15 +253,19 @@ class Bot:
 				channelName = self.get_current_channel_name()
 				if self.join_openned_channel():
 					self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
-				else:
-					print("You already joined that channel or group")
 			if self.open_channel("ZEC Click Bot"):
 				self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
 				if self.click_button_by_name(["Joined"]):
 					self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
-					hoursUntillReward = self.get_hours_untill_reward()
-					chat = Chat(channelName, hoursUntillReward)
-					print("Joined channel: ", channelName.encode("utf-8"))
+					if channelName != None:
+						hoursUntillReward = self.get_hours_untill_reward()
+						print("Hours untill reward '", hoursUntillReward, "'")
+						chat = Chat(channelName, hoursUntillReward)
+						print("Joined channel: ", channelName.encode("utf-8"))
+						self.joinedChatsCount += 1
+						print("You have joined ", self.joinedChatsCount, " chats in total")
+		if self.joinedChatsCount % self.joinLimit == 0:
+			self.change_operation(Operation.VISIT)
 					# TODO construct chat
 		#// Push the joined chat into the collection of all joined chats
 		#var hoursUntillReward = await getHoursUntillReward();
@@ -264,6 +274,7 @@ class Bot:
 		#console.error("Total channels joined: " + totalChannelsJoined);
 
 	def open_site(self):
+		print("Openning site")
 		return self.click_link_by_name(["Go to website"])
 
 	def validate_visit_sites(self):
@@ -289,20 +300,40 @@ class Bot:
 		
 		return result
 
+	def extract_sleep_time(self, message):
+		messages = WebDriverWait(self.driver, DRIVER_WAIT_TIME).until(
+			EC.presence_of_all_elements_located((By.CLASS_NAME, 'im_message_text'))
+		)
+		for message in reversed(messages):
+			print("Processing message: ", message.text.encode("utf-8"))
+			if message.text.find("Please stay on the site for at least") != -1:
+				regex = re.search('Please stay on the site for at least (.+?) seconds', message.text)
+				break
+			elif message.text.find("You must stay on the site for") != -1:
+				regex = re.search('You must stay on the site for (.+?) seconds to get your reward', message.text)
+				break
+
+		print("Regex result is ", regex)
+		return int(regex.group(1)) * SECOND
+
 	def visit_sites(self):
 		if self.validate_visit_sites():
 			self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
 			if self.open_site():
 				self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
 				if self.click_ok_popup_button():
-					self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
+					self.sleep(2 * SLEEP_TIME_BETWEEN_COMPONENTS - SECOND)
+					siteSleepTimeUntillReward = self.extract_sleep_time(self.get_last_message())
+					self.sleep(siteSleepTimeUntillReward)
+					self.driver.switch_to.window(self.driver.window_handles[1])
+					self.driver.close()
+					self.driver.switch_to.window(self.driver.window_handles[0])
+					self.visitedSitesCount += 1
+					print("You have visited ", self.visitedSitesCount, " sites in total")
 				else:
-					print("You already joined that channel or group")
-			#if self.open_channel("ZEC Click Bot"):
-				#self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
-				#if self.click_button_by_name(["Joined"]):
-					#self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
-					#print("Joined channel: ", channel_name.encode("utf-8"))
+					print("OK button is not present on the page. Could not open website.")
+		if self.visitedSitesCount % self.visitLimit == 0:
+			self.change_operation(Operation.JOIN)
 
 	def message_bots(self):
 		print("Messaging bots")
@@ -345,18 +376,13 @@ class Bot:
 		self.refresh()
 
 	def run_bot(self):
-		# If menu button is displayed, click it
-		if (self.click_button_by_name(["Menu"])):
-			print("Clicking Menu button")
 		# Process with the operation
 		if self.isOperationInitialized == False:
 			self.init_operation()
-			self.isOperationInitialized = True
 			self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
-			print("Initialized operation 'JOIN CHATS'")
-		if (self.operation == Operation.JOIN):
+		if self.operation == Operation.JOIN:
 			self.join_chats()
-		elif (self.operation == Operation.VISIT):
+		elif self.operation == Operation.VISIT:
 			self.visit_sites()
 		else:
 			self.message_bots()
@@ -366,12 +392,14 @@ class Bot:
 
 		try:
 			self.login()
+			self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
 			runs = 0
 			# Variable to define the starting time of the program
 			start_time = timeit.default_timer()
 			while True:
+				print("===========================================================")
+				# TODO try and catch exception 
 				self.run_bot()
-				self.sleep(2 * SLEEP_TIME_BETWEEN_COMPONENTS)
 				runs+=1
 				time_upto_last_run = timeit.default_timer()
 				print("Running for '", runs, "'' runs for '", (time_upto_last_run - start_time), "' seconds")
@@ -380,10 +408,13 @@ class Bot:
 					self.sleep(BOT_SLEEP_TIME)
 					start_time = timeit.default_timer()
 					self.refresh()
+				else:
+					self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
+				print("===========================================================")
 
 		finally:
 			print("Closing the driver")
-			self.driver.close()
+			self.driver.quit()
 
 # Unbuffer the print in order to show the data during the executing of the program
 # instead of when the program finishes

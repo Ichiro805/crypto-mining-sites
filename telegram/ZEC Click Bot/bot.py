@@ -45,16 +45,18 @@ class Unbuffered(object):
 
 # Class representing chat structure
 class Chat():
-	def __init__(self, link, hoursUntillReward = 0, joinDate = datetime.now(), leaveDate = datetime.now()):
+	def __init__(self, link, joinDate = datetime.now(), leaveDate = datetime.now()):
 		self.link = link
 		self.joinDate = joinDate
-		self.leaveDate = (self.joinDate + timedelta(hours = hoursUntillReward)) if leaveDate == None else leaveDate
+		self.leaveDate = leaveDate
 
 	def get_info(self):
 		return "[Link: " + self.link + ", Join date: " + str(self.joinDate) + ", Leave date: " + str(self.leaveDate) + "]\n"
 
 	def is_expired(self):
-		return datetime.now() >= self.leaveDate
+		expired = datetime.now() >= self.leaveDate
+		print("Chat: ", self.get_info(), " is expired: ", expired)
+		return expired
 
 # Enum defining all supported operations by the bot
 class Operation(Enum):
@@ -80,7 +82,7 @@ class Bot:
 			link = cache_line_parts[0].split(":", 1)[1].strip()
 			joinedDate = datetime.strptime(cache_line_parts[1].split(":", 1)[1].strip(), "%Y-%m-%d %H:%M:%S.%f")
 			leaveDate = datetime.strptime(cache_line_parts[2].split(":", 1)[1].strip(), "%Y-%m-%d %H:%M:%S.%f")
-			chat = Chat(link, 0, joinedDate, leaveDate)
+			chat = Chat(link, joinedDate, leaveDate)
 			print("Serialized chat: ", chat.get_info())
 			return chat
 		except:
@@ -275,7 +277,9 @@ class Bot:
 					if self.is_bot_joined_success() and current_url != None:
 						hoursUntillReward = self.get_hours_untill_reward()
 						print("Hours untill reward '", hoursUntillReward, "'")
-						chat = Chat(current_url, hoursUntillReward)
+						joinDate = datetime.now()
+						leaveDate = joinDate + timedelta(hours = hoursUntillReward)
+						chat = Chat(current_url, joinDate, leaveDate)
 						self.chatsJoined.append(chat)
 						print("Joined channel: ", chat.get_info())
 						self.joinedChatsCount += 1
@@ -382,16 +386,40 @@ class Bot:
 		# Open ZEC click bot
 		self.refresh()
 
+	def open_current_channel_options(self):
+		all_peers_info = WebDriverWait(self.driver, DRIVER_WAIT_TIME).until(
+			EC.presence_of_all_elements_located((By.CLASS_NAME, 'tg_head_btn'))
+		)
+		all_peers_info[len(all_peers_info) - 1].click()
+
+	def leave_current_channel(self):
+		try:
+			leave_button = WebDriverWait(self.driver, DRIVER_WAIT_TIME).until(
+				EC.presence_of_element_located((By.CLASS_NAME, 'md_modal_list_peer_action pull-right'))
+			).click()
+		except TimeoutException:
+			leave_button = WebDriverWait(self.driver, DRIVER_WAIT_TIME).until(
+				EC.presence_of_element_located((By.CLASS_NAME, 'md_modal_section_link'))
+			).click()
+
 	def leave_chat(self, chat):
 		self.chatsJoined.remove(chat)
 		print("Leaving chat: " + chat.get_info())
-		print("TODO to actually leave the channel")
-
+		self.open_channel(chat.link)
+		self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
+		self.open_current_channel_options()
+		self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
+		self.leave_current_channel()
+		self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
+		self.click_ok_popup_button()
 		self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
 
 	def run_bot(self):
 		# Leave all channels which are expired
-		map(self.leave_chat, [chat for chat in self.chatsJoined if chat.is_expired()])
+		print("Check if there are expired chats and leave them...!")
+		for chat in self.chatsJoined:
+			if chat.is_expired():
+				self.leave_chat(chat)
 
 		# Process with the operation
 		if self.isOperationInitialized == False:

@@ -10,6 +10,7 @@ from selenium.common.exceptions import TimeoutException
 from selenium.common.exceptions import StaleElementReferenceException
 import timeit
 import re
+from selenium.webdriver.common.action_chains import ActionChains
 
 # Time which the driver will wait to find component untill timeout exception is raised in seconds
 DRIVER_WAIT_TIME = 10
@@ -171,7 +172,7 @@ class Bot:
 						button.click()
 						return True
 		except TimeoutException:
-			print("Component was not found on the page in the given timeout")
+			print("Component ", names, " was not found on the page in the given timeout")
 		return False
 
 	def send_text(self, text):
@@ -393,34 +394,53 @@ class Bot:
 		all_peers_info[len(all_peers_info) - 1].click()
 
 	def leave_current_channel(self):
+		print("Leaving current channel..!")
+		if self.click("a", ["Leave"], 'md_modal_list_peer_action pull-right') == False:
+			self.click("a", ["Leave channel"], 'md_modal_section_link')
+
+	def is_chat_valid(self):
 		try:
-			leave_button = WebDriverWait(self.driver, DRIVER_WAIT_TIME).until(
-				EC.presence_of_element_located((By.CLASS_NAME, 'md_modal_list_peer_action pull-right'))
-			).click()
+			popup = WebDriverWait(self.driver, DRIVER_WAIT_TIME / 2).until(
+				EC.presence_of_all_elements_located((By.CLASS_NAME, 'error_modal_description'))
+			)
+			print("popup with errors found..!")
+			actions = ActionChains(self.driver)
+			actions.send_keys(Keys.ESCAPE)
+			actions.perform()
+			print("Pressing escape..!")
 		except TimeoutException:
-			leave_button = WebDriverWait(self.driver, DRIVER_WAIT_TIME).until(
-				EC.presence_of_element_located((By.CLASS_NAME, 'md_modal_section_link'))
-			).click()
+			return True
+		return False
 
 	def leave_chat(self, chat):
-		self.chatsJoined.remove(chat)
 		print("Leaving chat: " + chat.get_info())
 		self.open_channel(chat.link)
 		self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
-		self.open_current_channel_options()
-		self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
-		self.leave_current_channel()
-		self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
-		self.click_ok_popup_button()
-		self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
+		# If the chat is valid leave it from the webpage otherwise just remove it from the list
+		if self.is_chat_valid():
+			print("Chat is valid..Continue processing..!")
+			self.open_current_channel_options()
+			self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
+			self.leave_current_channel()
+			self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
+			self.click_ok_popup_button()
+			self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
+		# After everything runs successfully in the telegram, remove it here as well
+		print("Removing chat from the collection..!")
+		self.chatsJoined.remove(chat)
 
 	def run_bot(self):
 		# Leave all channels which are expired
 		print("Check if there are expired chats and leave them...!")
+		has_any_expired_channel = False
 		for chat in self.chatsJoined:
 			if chat.is_expired():
 				self.leave_chat(chat)
-
+				print("Chat removed successfully..!")
+				has_any_expired_channel = True
+		if has_any_expired_channel:
+			self.open_channel(BOT_LINK)
+			self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
 		# Process with the operation
 		if self.isOperationInitialized == False:
 			self.init_operation()

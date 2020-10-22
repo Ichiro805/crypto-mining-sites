@@ -497,7 +497,8 @@ class Bot:
 				if self.is_screen_clear() == False:
 					print("Some critical error appeared on the screen..! Sleeping for some time and then try again untill error is not present..!")
 					self.sleep(HOUR)
-					break;
+					self.refresh()
+					continue;
 				print("===========================================================")
 				# TODO try and catch exception 
 				#try:

@@ -18,7 +18,7 @@ DRIVER_WAIT_TIME = 10
 SECOND = 1000
 
 # Sleep time between searching from 1 component to another in milliseconds
-SLEEP_TIME_BETWEEN_COMPONENTS = 6 * SECOND
+SLEEP_TIME_BETWEEN_COMPONENTS = 10 * SECOND
 
 # Waiting for new message limit before switching to different operation
 RETRY_LIMIT = 2
@@ -30,7 +30,11 @@ BOT_SLEEP_TIME = SECOND * 60 * 10
 
 BOT_LINK = "https://web.telegram.org/#/im?p=@Zcash_click_bot"
 
-CHATS_CACHE_FILE = "chats.cache"
+PHONE_CONTRY = "+359"
+
+PHONE_NUMBER = "899071311"
+
+CHATS_CACHE_FILE = "chats.cache" + "_" + PHONE_NUMBER
 
 class Unbuffered(object):
    def __init__(self, stream):
@@ -138,21 +142,30 @@ class Bot:
 		self.driver.refresh()
 
 	def get_last_message(self):
-		messages = WebDriverWait(self.driver, DRIVER_WAIT_TIME).until(
-			EC.presence_of_all_elements_located((By.XPATH, "//div[@class='im_message_text']"))
-		)
-		return messages[len(messages) - 1].text
+		try:
+			messages = WebDriverWait(self.driver, DRIVER_WAIT_TIME).until(
+				EC.presence_of_all_elements_located((By.XPATH, "//div[@class='im_message_text']"))
+			)
+			return messages[len(messages) - 1].text
+		except TimeoutException:
+			return None
 
 	def change_operation(self, new_operation):
 		self.operation = new_operation
 		self.isOperationInitialized = False
 		self.refresh()
+		self.waitingForTasksRetry = 0
+		self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
 
 	def click_ok_popup_button(self):
-		ok_popup_btn = WebDriverWait(self.driver, DRIVER_WAIT_TIME).until(
-			EC.presence_of_element_located((By.XPATH, "//button[@class='btn btn-md btn-md-primary']"))
-		)
-		ok_popup_btn.click()
+		try:
+			ok_popup_btn = WebDriverWait(self.driver, DRIVER_WAIT_TIME).until(
+				EC.presence_of_element_located((By.XPATH, "//button[@class='btn btn-md btn-md-primary']"))
+			)
+			ok_popup_btn.click()
+		except:
+			print("OK Button is not present")
+			return False
 		print("Clicking OK button")
 		return True
 
@@ -206,26 +219,26 @@ class Bot:
 	def validate_join_chats(self):
 		print("Validate joining chats")
 		message = self.get_last_message().strip()
-		print("Validating message: ", message.encode("utf-8"));
-		result = True
-		if message.find("We cannot find you") != -1 or message.find("You already completed this task") != -1:
-			self.skip_channel()
-			result = False
-		elif message.find("There is a new chat for you to join") != -1 or message.find("Sorry, that task is no longer valid") != -1 or message.find("There is a new chat for you to join") != -1:
-			self.start_join_channel()
-			self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
-			result = False
-		elif message.find("Sorry, there are no new ads available.") != -1 or message.find("Join chats") != -1:
-			print("Waiting for new tasks")
-			self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
-			result = False
-			self.waitingForTasksRetry += 1
-			print("RETRY: ", self.waitingForTasksRetry," from JOIN")
-			if self.waitingForTasksRetry % RETRY_LIMIT == 0:
-				self.change_operation(Operation.VISIT)
-				self.waitingForTasksRetry = 0
+		if message != None:
+			print("Validating message: ", message.encode("utf-8"));
+			result = True
+			if message.find("We cannot find you") != -1 or message.find("You already completed this task") != -1:
+				self.skip_channel()
+				result = False
+			elif message.find("There is a new chat for you to join") != -1 or message.find("Sorry, that task is no longer valid") != -1 or message.find("There is a new chat for you to join") != -1:
+				self.start_join_channel()
 				self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
-		
+				result = False
+			elif message.find("Sorry, there are no new ads available.") != -1 or message.find("Join chats") != -1:
+				print("Waiting for new tasks")
+				self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
+				result = False
+				self.waitingForTasksRetry += 1
+				print("RETRY: ", self.waitingForTasksRetry," from JOIN")
+				if self.waitingForTasksRetry % RETRY_LIMIT == 0:
+					self.change_operation(Operation.VISIT)
+		else:
+			result = False
 		if result == False:
 			self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
 			self.open_channel(BOT_LINK)
@@ -277,15 +290,18 @@ class Bot:
 					self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
 					if self.is_bot_joined_success() and current_url != None:
 						hoursUntillReward = self.get_hours_untill_reward()
-						print("Hours untill reward '", hoursUntillReward, "'")
-						joinDate = datetime.now()
-						leaveDate = joinDate + timedelta(hours = hoursUntillReward)
-						chat = Chat(current_url, joinDate, leaveDate)
-						self.chatsJoined.append(chat)
-						print("Joined channel: ", chat.get_info())
-						self.joinedChatsCount += 1
-						print("You have joined ", self.joinedChatsCount, " chats in total")
-						if self.joinedChatsCount % self.joinLimit == 0:
+						if hoursUntillReward != None:
+							print("Hours untill reward '", hoursUntillReward, "'")
+							joinDate = datetime.now()
+							leaveDate = joinDate + timedelta(hours = hoursUntillReward)
+							chat = Chat(current_url, joinDate, leaveDate)
+							self.chatsJoined.append(chat)
+							print("Joined channel: ", chat.get_info())
+							self.joinedChatsCount += 1
+							print("You have joined ", self.joinedChatsCount, " chats in total")
+							if self.joinedChatsCount % self.joinLimit == 0:
+								self.change_operation(Operation.VISIT)
+						else:
 							self.change_operation(Operation.VISIT)
 
 	def open_site(self):
@@ -305,8 +321,6 @@ class Bot:
 			print("RETRY: ", self.waitingForTasksRetry," from VISIT")
 			if self.waitingForTasksRetry % RETRY_LIMIT == 0:
 				self.change_operation(Operation.JOIN)
-				self.waitingForTasksRetry = 0
-				self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
 		
 		if result == False:
 			self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
@@ -364,7 +378,7 @@ class Bot:
 		    EC.presence_of_element_located((By.NAME, "phone_country"))
 		)
 		phone_country.clear()
-		phone_country.send_keys("+359")
+		phone_country.send_keys(PHONE_CONTRY)
 		print("Set phone country number")
 		self.sleep(2000)
 
@@ -372,7 +386,7 @@ class Bot:
 		phone_number = WebDriverWait(self.driver, DRIVER_WAIT_TIME).until(
 		    EC.presence_of_element_located((By.NAME, "phone_number"))
 		)
-		phone_number.send_keys("899205738")
+		phone_number.send_keys(PHONE_NUMBER)
 		phone_number.send_keys(Keys.ENTER)
 		print("Set phone number")
 		self.sleep(2000)
@@ -395,10 +409,15 @@ class Bot:
 
 	def leave_current_channel(self):
 		print("Leaving current channel..!")
-		if self.click("a", ["Leave"], 'md_modal_list_peer_action pull-right') == False:
-			self.click("a", ["Leave channel"], 'md_modal_section_link')
+		try:
+			if self.click("a", ["Leave"], 'md_modal_list_peer_action pull-right') == False:
+				self.click("a", ["Leave channel"], 'md_modal_section_link')
+				return True
+		except:
+			print("Channel already is left")
+		return False
 
-	def is_chat_valid(self):
+	def is_screen_clear(self):
 		try:
 			popup = WebDriverWait(self.driver, DRIVER_WAIT_TIME / 2).until(
 				EC.presence_of_all_elements_located((By.CLASS_NAME, 'error_modal_description'))
@@ -417,14 +436,14 @@ class Bot:
 		self.open_channel(chat.link)
 		self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
 		# If the chat is valid leave it from the webpage otherwise just remove it from the list
-		if self.is_chat_valid():
+		if self.is_screen_clear():
 			print("Chat is valid..Continue processing..!")
 			self.open_current_channel_options()
 			self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
-			self.leave_current_channel()
-			self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
-			self.click_ok_popup_button()
-			self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
+			if self.leave_current_channel():
+				self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
+				if self.click_ok_popup_button():
+					self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
 		# After everything runs successfully in the telegram, remove it here as well
 		print("Removing chat from the collection..!")
 		self.chatsJoined.remove(chat)
@@ -462,6 +481,9 @@ class Bot:
 			# Variable to define the starting time of the program
 			start_time = timeit.default_timer()
 			while True:
+				if self.is_screen_clear() == False:
+					print("There was error on the screen.. Exiting..!")
+					break;
 				print("===========================================================")
 				# TODO try and catch exception 
 				#try:

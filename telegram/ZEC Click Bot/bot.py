@@ -15,10 +15,14 @@ from selenium.webdriver.common.action_chains import ActionChains
 # Time which the driver will wait to find component untill timeout exception is raised in seconds
 DRIVER_WAIT_TIME = 10
 
+# 1 second in milliseconds
 SECOND = 1000
 
+# 1 hour in milliseconds
+HOUR = 3600 * SECOND
+
 # Sleep time between searching from 1 component to another in milliseconds
-SLEEP_TIME_BETWEEN_COMPONENTS = 10 * SECOND
+SLEEP_TIME_BETWEEN_COMPONENTS = 15 * SECOND
 
 # Waiting for new message limit before switching to different operation
 RETRY_LIMIT = 2
@@ -26,16 +30,22 @@ RETRY_LIMIT = 2
 # Time to run the bot until it pauses for SLEEP_BOT_TIME seconds
 BOT_WAIT_TIME = 1200
 
+# Time which the bot will sleep every BOT_WAIT_TIME milliseconds in milliseconds
 BOT_SLEEP_TIME = SECOND * 60 * 10
 
+# Current running bot link
 BOT_LINK = "https://web.telegram.org/#/im?p=@Zcash_click_bot"
 
+# Country digits of the phone number
 PHONE_CONTRY = "+359"
 
-PHONE_NUMBER = "899071311"
+# Rest of the phone number
+PHONE_NUMBER = "899205738"
 
+# File which the programm will cache joined chats by this phone number
 CHATS_CACHE_FILE = "chats.cache" + "_" + PHONE_NUMBER
 
+# Object used to unbuffer the print and show the output during execution of the program
 class Unbuffered(object):
    def __init__(self, stream):
        self.stream = stream
@@ -133,7 +143,8 @@ class Bot:
 		self.reset()
 
 	def sleep(self, ms):
-		print("Sleeping for: ", ms, " ms")
+		timenow = datetime.now()
+		print("Sleeping for: ", ms, " ms. Sleep is from ", str(timenow), "to", str(timenow + timedelta(hours = ms / 1000 / 60)))
 		time.sleep(ms / 1000)
 
 	def refresh(self, channel_link = BOT_LINK):
@@ -396,6 +407,8 @@ class Bot:
 		print("Confirm the number")
 		self.sleep(2000)
 
+		print("Logging in as: ", PHONE_CONTRY, PHONE_NUMBER)
+
 		# Wait for the user to enter the SMS code and confirm the login
 		self.wait_for_login()
 		# Open ZEC click bot
@@ -482,7 +495,8 @@ class Bot:
 			start_time = timeit.default_timer()
 			while True:
 				if self.is_screen_clear() == False:
-					print("There was error on the screen.. Exiting..!")
+					print("Some critical error appeared on the screen..! Sleeping for some time and then try again untill error is not present..!")
+					self.sleep(HOUR)
 					break;
 				print("===========================================================")
 				# TODO try and catch exception 

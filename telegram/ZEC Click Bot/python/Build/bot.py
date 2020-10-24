@@ -36,14 +36,11 @@ BOT_SLEEP_TIME = SECOND * 60 * 10
 # Current running bot link
 BOT_LINK = "https://web.telegram.org/#/im?p=@Zcash_click_bot"
 
-# Open chat link pattern
-OPEN_CHAT_LINK_PART = "https://web.telegram.org/#/im?p=@"
-
 # Country digits of the phone number
 PHONE_CONTRY = "+359"
 
 # Rest of the phone number
-PHONE_NUMBER = "899071311"
+PHONE_NUMBER = "887474415"
 
 # File which the programm will cache joined chats by this phone number
 CHATS_CACHE_FILE = "chats.cache" + "_" + PHONE_NUMBER
@@ -145,11 +142,6 @@ class Bot:
 		self.chatsJoined = self.load_chats_from_last_run()
 		self.reset()
 
-	def close_tab(self):
-		self.driver.switch_to.window(self.driver.window_handles[1])
-		self.driver.close()
-		self.driver.switch_to.window(self.driver.window_handles[0])
-
 	def sleep(self, ms):
 		timenow = datetime.now()
 		print("Sleeping for: ", ms, " ms. Sleep is from ", str(timenow), "to", str(timenow + timedelta(hours = ms / 1000 / 3600)))
@@ -170,7 +162,6 @@ class Bot:
 			return None
 
 	def change_operation(self, new_operation):
-		print("Changing operation..!")
 		self.operation = new_operation
 		self.isOperationInitialized = False
 		self.refresh()
@@ -296,43 +287,25 @@ class Bot:
 		self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS / 2)
 		return self.get_last_message().find("We cannot find you") == -1
 
-	def join_chats(self, channel_url = None):
+	def join_chats(self, current_url = None):
 		if self.validate_join_chats():
 			self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
 			if self.open_joining_channel():
 				self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
-				# The bot update to have a link on the chats as well
-				if self.click_ok_popup_button():
+				current_url = self.driver.current_url
+				if self.join_openned_channel():
 					self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
-					# Get current url. It would be something like that https://t.me/Jizzax_Zomin_bozor
-					self.driver.switch_to.window(self.driver.window_handles[1])
-					print("Current url is ", self.driver.current_url)
-					chatUrlNameParts = self.self.driver.current_url.split("/")
-					print("URL parts are", chatUrlNameParts)
-					chatUrlName = chatUrlNameParts[len(chatUrlNameParts) - 1].strip()
-					print("Extracted chat name", chatUrlName)
-					self.close_tab()
-					self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
-					self.open_channel(OPEN_CHAT_LINK_PART + chatUrlName)
-					self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
-					channel_url = OPEN_CHAT_LINK_PART + chatUrlName
-					if self.join_openned_channel():
-						self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
-				else:
-					channel_url = self.driver.current_url
-					if self.join_openned_channel():
-						self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
 				self.open_channel(BOT_LINK)
 				self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
 				if self.click_button_by_name(["Joined"]):
 					self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
-					if self.is_bot_joined_success() and channel_url != None:
+					if self.is_bot_joined_success() and current_url != None:
 						hoursUntillReward = self.get_hours_untill_reward()
 						if hoursUntillReward != None:
 							print("Hours untill reward '", hoursUntillReward, "'")
 							joinDate = datetime.now()
 							leaveDate = joinDate + timedelta(hours = hoursUntillReward)
-							chat = Chat(channel_url, joinDate, leaveDate)
+							chat = Chat(current_url, joinDate, leaveDate)
 							self.chatsJoined.append(chat)
 							print("Joined channel: ", chat.get_info())
 							self.joinedChatsCount += 1
@@ -393,7 +366,9 @@ class Bot:
 					self.sleep(2 * SLEEP_TIME_BETWEEN_COMPONENTS - SECOND)
 					siteSleepTimeUntillReward = self.extract_sleep_time(self.get_last_message())
 					self.sleep(siteSleepTimeUntillReward)
-					self.close_tab()
+					self.driver.switch_to.window(self.driver.window_handles[1])
+					self.driver.close()
+					self.driver.switch_to.window(self.driver.window_handles[0])
 					self.visitedSitesCount += 1
 					print("You have visited ", self.visitedSitesCount, " sites in total")
 					if self.visitedSitesCount % self.visitLimit == 0:
@@ -455,19 +430,15 @@ class Bot:
 			print("Channel already is left")
 		return False
 
-	def press_escape(self):
-		print("Presing escape key..!")
-		actions = ActionChains(self.driver)
-		actions.send_keys(Keys.ESCAPE)
-		actions.perform()
-
 	def is_screen_clear(self):
 		try:
 			popup = WebDriverWait(self.driver, DRIVER_WAIT_TIME / 2).until(
 				EC.presence_of_all_elements_located((By.CLASS_NAME, 'error_modal_description'))
 			)
 			print("popup with errors found..!")
-			self.press_escape()
+			actions = ActionChains(self.driver)
+			actions.send_keys(Keys.ESCAPE)
+			actions.perform()
 			print("Pressing escape..!")
 		except TimeoutException:
 			return True
@@ -540,9 +511,8 @@ class Bot:
 						self.refresh()
 					else:
 						self.sleep(SLEEP_TIME_BETWEEN_COMPONENTS)
-				except Exception as e:
+				except:
 					print("Some critical error appeared on the screen..! Sleeping for some time and then try again untill error is not present..!")
-					print(repr(e))
 					self.sleep(HOUR)
 					self.refresh()
 				print("===========================================================")
